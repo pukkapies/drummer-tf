@@ -120,14 +120,14 @@ def main(args):
             # Check patience
             patience_reached, new_best_cost = patience.update(loss)
 
-            if new_best_cost: # and (patience.learning_rates_index + 1 == len(args.learning_rates)):
+            if new_best_cost and ((patience.learning_rates_index + 1 == len(args.learning_rates)) or step >= 5000):
                 # Save the model for a new best cost and delete the old saved model
-                print('New best cost achieved, saving the model... ', end='')
+                # print('New best cost achieved, saving the model... ', end='')
                 for file in os.listdir(args.model_folder):
                     if 'best_cost_model' in file:
-                        os.remove(file)
+                        os.remove(args.model_folder + file)
                 saver.save(sess, args.model_folder + '/best_cost_model', global_step=step)
-                print('done.')
+                # print('done.')
             if patience_reached:
                 if patience.learning_rates_index + 1 > len(args.learning_rates): #Ran out of learning rates, so terminate
                     print('Max patience reached...')

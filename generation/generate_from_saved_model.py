@@ -95,6 +95,7 @@ def main(args):
             states.append((np.zeros((1, n_hidden[lstm_layer])), np.zeros((1, n_hidden[lstm_layer]))))
 
         #TODO: Extend to multiple LSTM layers - for now, hard code one layer
+        assert len(n_hidden)==1
         state_placeholder = state_placeholders[0]
         state = states[0]
 

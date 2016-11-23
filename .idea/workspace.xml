@@ -35,10 +35,14 @@
       <file leaf-file-name="rnn_models.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/nn_models/rnn_models.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="375">
-              <caret line="51" column="0" selection-start-line="51" selection-start-column="0" selection-end-line="51" selection-end-column="0" />
+            <state relative-caret-position="2910">
+              <caret line="194" column="73" selection-start-line="194" selection-start-column="73" selection-end-line="194" selection-end-column="73" />
               <folding>
                 <element signature="e#0#23#0" expanded="true" />
+                <marker date="1479931197000" expanded="true" signature="7825:10255" ph="..." />
+                <marker date="1479931197000" expanded="true" signature="7832:8369" ph="&quot;&quot;&quot;...&quot;&quot;&quot;" />
+                <marker date="1479931197000" expanded="true" signature="8531:8674" ph="..." />
+                <marker date="1479931197000" expanded="true" signature="8683:8926" ph="..." />
               </folding>
             </state>
           </provider>
@@ -54,11 +58,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="generate_from_saved_model.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="generate_from_saved_model.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/generation/generate_from_saved_model.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="393">
-              <caret line="115" column="100" selection-start-line="114" selection-start-column="12" selection-end-line="115" selection-end-column="100" />
+            <state relative-caret-position="273">
+              <caret line="100" column="0" selection-start-line="100" selection-start-column="0" selection-end-line="100" selection-end-column="0" />
               <folding>
                 <element signature="e#0#23#0" expanded="true" />
               </folding>
@@ -66,11 +70,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="train_LSTM.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="train_LSTM.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/training/train_LSTM.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="225">
-              <caret line="129" column="0" selection-start-line="129" selection-start-column="0" selection-end-line="129" selection-end-column="0" />
+            <state relative-caret-position="795">
+              <caret line="126" column="49" selection-start-line="126" selection-start-column="49" selection-end-line="126" selection-end-column="49" />
               <folding>
                 <element signature="e#0#42#0" expanded="true" />
               </folding>
@@ -163,11 +167,11 @@
         <option value="$PROJECT_DIR$/training/rnn_models.py" />
         <option value="$PROJECT_DIR$/preprocess/sineModelvectors.py" />
         <option value="$PROJECT_DIR$/train_model.py" />
-        <option value="$PROJECT_DIR$/generation/generate_from_saved_model.py" />
         <option value="$USER_HOME$/anaconda2/envs/tensorflow/lib/python3.5/site-packages/tensorflow/python/ops/rnn_cell.py" />
         <option value="$PROJECT_DIR$/training/setup/setup_data.py" />
-        <option value="$PROJECT_DIR$/nn_models/rnn_models.py" />
         <option value="$PROJECT_DIR$/training/train_LSTM.py" />
+        <option value="$PROJECT_DIR$/nn_models/rnn_models.py" />
+        <option value="$PROJECT_DIR$/generation/generate_from_saved_model.py" />
       </list>
     </option>
   </component>
@@ -855,26 +859,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/generation/generate_from_saved_model.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="393">
-          <caret line="115" column="100" selection-start-line="114" selection-start-column="12" selection-end-line="115" selection-end-column="100" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/nn_models/rnn_models.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="375">
-          <caret line="51" column="0" selection-start-line="51" selection-start-column="0" selection-end-line="51" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/preprocess/sineModelvectors.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1320">
@@ -885,12 +869,36 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/nn_models/rnn_models.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2910">
+          <caret line="194" column="73" selection-start-line="194" selection-start-column="73" selection-end-line="194" selection-end-column="73" />
+          <folding>
+            <element signature="e#0#23#0" expanded="true" />
+            <marker date="1479931197000" expanded="true" signature="7825:10255" ph="..." />
+            <marker date="1479931197000" expanded="true" signature="7832:8369" ph="&quot;&quot;&quot;...&quot;&quot;&quot;" />
+            <marker date="1479931197000" expanded="true" signature="8531:8674" ph="..." />
+            <marker date="1479931197000" expanded="true" signature="8683:8926" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/training/train_LSTM.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="225">
-          <caret line="129" column="0" selection-start-line="129" selection-start-column="0" selection-end-line="129" selection-end-column="0" />
+        <state relative-caret-position="795">
+          <caret line="126" column="49" selection-start-line="126" selection-start-column="49" selection-end-line="126" selection-end-column="49" />
           <folding>
             <element signature="e#0#42#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/generation/generate_from_saved_model.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="273">
+          <caret line="100" column="0" selection-start-line="100" selection-start-column="0" selection-end-line="100" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#23#0" expanded="true" />
           </folding>
         </state>
       </provider>
