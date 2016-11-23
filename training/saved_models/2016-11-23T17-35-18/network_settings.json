@@ -1,1 +1,0 @@
-{"SineModel_settings": {"w": "blackmanharris", "N": 4096, "H": 512, "phase_range": [0, 6.283185307179586], "freq_range": [0, 8000.0], "mag_range": [-89.86880234323405, -8.132911084919328], "M": 2047, "sample_rate": 16000}, "n_outputs": 300, "n_inputs": 300, "hidden_units1": [1000], "n_steps": 164}

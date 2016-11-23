@@ -1,1 +1,0 @@
-{"n_steps": 164, "n_inputs": 300, "SineModel_settings": {"phase_range": [0, 6.283185307179586], "w": "blackmanharris", "N": 4096, "freq_range": [0, 22050.0], "H": 512, "M": 2047, "sample_rate": 44100, "mag_range": [-89.95762239884405, -10.940624996212463]}, "n_outputs": 300, "n_hidden": [1000]}
