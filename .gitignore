@@ -1,0 +1,13 @@
+*.wav
+*.png
+*.aif
+*.npy
+*.jpg
+*.jpeg
+
+./training/saved_models/
+./training/logdir/
+./testfolder/
+./rockkit/
+./generation/plots/
+./example_data/
