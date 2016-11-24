@@ -7,14 +7,15 @@ VECTOR_FOLDER = "./preprocess/vectors"
 
 # Training parameters
 LEARNING_RATE_LIST = [0.001, 0.0001, 0.00001]
-NUM_TRAINING_STEPS = 100000
+NUM_TRAINING_STEPS = 10000
 BATCH_SIZE = 3
 STARTED_DATESTRING = "{0:%Y-%m-%dT%H-%M-%S}".format(datetime.now())
 DISPLAY_STEP = 10
-SAVE_EVERY = 50
+SAVE_EVERY = 500
 CHECKPOINT_EVERY = 200
-SELF_UPDATING_RNN = True
 MAX_PATIENCE = 500
+
+N_HIDDEN = [1000] # hidden layer num of features in LSTM
 
 # If it's not specified in the arguments then a datestamped subfolder will be created for the model
 MODEL_FOLDER = './training/saved_models'
@@ -49,6 +50,8 @@ def get_arguments():
                         help='Number of training steps.')
     parser.add_argument('--learning_rates', default=LEARNING_RATE_LIST, type=float, nargs='+',
                         help='Learning rate list for training.')
+    parser.add_argument('--lstm_hidden_units', default=N_HIDDEN, type=int, nargs='+',
+                        help='Number of hidden units in each LSTM layer')
     parser.add_argument('--display_step', type=int, default=DISPLAY_STEP,
                         help='How often to display training progress and save model.')
     parser.add_argument('--grad_clip', type=float, default=5.,

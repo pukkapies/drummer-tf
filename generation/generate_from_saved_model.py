@@ -69,7 +69,12 @@ def main(args):
     if args.model_folder[-1] == '/':
         args.model_folder = args.model_folder[:-1]
 
-    with open(args.model_folder + settings_json_string, 'r') as f:
+    if os.path.isfile(args.model_folder):
+        enclosing_model_folder = os.path.join(*args.model_folder.split(sep='/')[:-1])
+    else:
+        enclosing_model_folder = args.model_folder
+
+    with open(enclosing_model_folder + settings_json_string, 'r') as f:
         network_settings = json.load(f)
 
     sinemodel_settings = network_settings['SineModel_settings']
@@ -81,40 +86,46 @@ def main(args):
 
     input_data_shape = (1, 1, network_settings['n_inputs'])
 
+
+
+
+
+
+
+
     with tf.Session() as sess:
 
-        n_hidden = network_settings['n_hidden']  #List of hidden unit sizes
+        n_hidden = network_settings['n_hidden']  # List of hidden unit sizes
 
         input_placeholder = tf.placeholder(tf.float32, shape=input_data_shape)
+        input = np.zeros(input_data_shape)
+
+        feed_dict = {input_placeholder: input}
 
         state_placeholders = []
         states = []
         for lstm_layer in range(len(n_hidden)):
-            state_placeholders.append((tf.placeholder(tf.float32, shape=(1, n_hidden[lstm_layer])),
-                                       tf.placeholder(tf.float32, shape=(1, n_hidden[lstm_layer]))))
+            state_placeholders.append((tf.placeholder(tf.float32, shape=(1, n_hidden[lstm_layer])),  # batch_size = 1
+                                       tf.placeholder(tf.float32, shape=(1, n_hidden[lstm_layer]))))  # batch_size = 1
             states.append((np.zeros((1, n_hidden[lstm_layer])), np.zeros((1, n_hidden[lstm_layer]))))
+            feed_dict[state_placeholders[lstm_layer]] = states[lstm_layer]
 
-        #TODO: Extend to multiple LSTM layers - for now, hard code one layer
-        assert len(n_hidden)==1
-        state_placeholder = state_placeholders[0]
-        state = states[0]
+        lstm = SimpleLSTM(input_placeholder, state_placeholders, n_hidden, network_settings['n_outputs'])
 
-        lstm = SimpleLSTM(input_placeholder, state_placeholder, n_hidden, network_settings['n_outputs'])
+        print([var.name for var in tf.all_variables()])
+        saver = tf.train.Saver()
 
-        saver = tf.train.Saver(var_list=tf.trainable_variables())
-
-        load_saved_model_to_resume_training(saver, sess, args.model_folder)
+        saver.restore(sess, args.model_folder)
+        # load_saved_model_to_resume_training(saver, sess, args.model_folder)
 
         outputs_list = []
-
-        input = np.zeros(input_data_shape)
 
         print('n_steps:', network_settings['n_steps'])
 
         for step in range(network_settings['n_steps']):
             # output, state = rnn.rnn(lstm.cell, input, initial_state=state, dtype=tf.float32)
             output, state = sess.run([lstm.prediction, lstm.state],
-                                     feed_dict={input_placeholder: input, state_placeholder: state})
+                                     feed_dict=feed_dict)
             outputs_list.append(output)
             input = output
 

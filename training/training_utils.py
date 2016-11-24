@@ -21,7 +21,7 @@ class Patience(object):
             return False, True
         else:
             self.iterations += 1
-            if self.iterations >= self.max_iterations: # Patience reached, change the learning rate or terminate
+            if self.iterations >= self.max_iterations:  # Patience reached, change the learning rate or terminate
                 self.learning_rates_index += 1
                 self.iterations = 0
                 return True, False

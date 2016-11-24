@@ -8,30 +8,47 @@ class SimpleLSTM(object):
     def __init__(self, input_placeholder, state_placeholder, n_hidden, n_outputs):
         """
         Sets up the LSTM model with an additional output filter to shape to size n_outputs
-        :param input_placeholder: Placeholder tensor of shape (batch_size, n_steps, n_inputs)
-        :param state_placeholder: Placeholder tensor of shape (batch_size, 1, n_hidden). Can be None, in which
-                                    case, the LSTM is initialised with a zero state (see rnn.rnn implementation)
+        :param input_placeholder: Placeholder tensor of shape (n_steps, batch_size, n_inputs)
+        :param state_placeholder: List (length num_layers) of a tuple of 2 placeholder tensors of shape (batch_size, n_hidden).
+                Can be None, in which case, the LSTM is initialised with a zero state (see rnn.rnn implementation)
         :param n_hidden: List of size of the hidden layers of the LSTM
         :param n_outputs: Size of the output
         """
-        #TODO: Extend to multiple LSTM layers
-        assert len(n_hidden)==1
-        n_hidden = n_hidden[0]
+        assert len(n_hidden) >= 1
+        assert len(n_hidden) == len(state_placeholder)
+
+        self.num_layers = len(n_hidden)
+        self.weights_out = []
+        self.biases_out = []
+        self.cell = []
+        print('n_outputs:', n_outputs)
+        print('n_hidden:', n_hidden)
+
+        # Turn n_outputs into a list for convenience
+        if len(n_hidden)==1:
+            n_outputs = [n_outputs]
+        else:
+            n_outputs = n_hidden[1:] + [n_outputs]
+
         with tf.variable_scope("LSTM_model"):
-            self.weights_out = tf.Variable(tf.random_normal([n_hidden, n_outputs]))
-            self.biases_out = tf.Variable(tf.random_normal([n_outputs]))
-            self.cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
+            for i in range(len(n_hidden)):
+                with tf.variable_scope('layer_{}'.format(i+1)):
+                    self.weights_out.append(tf.Variable(tf.random_normal([n_hidden[i], n_outputs[i]])))
+                    self.biases_out.append(tf.Variable(tf.random_normal([n_outputs[i]])))
+                    # The following doesn't yet create variables, so doesn't use the variable_scope
+                    self.cell.append(rnn_cell.BasicLSTMCell(n_hidden[i], forget_bias=1.0))
+                    print(self.cell[i])
 
         self.prediction, self.state = self.sample(input_placeholder, state_placeholder)
 
     def sample(self, input, state):
         """
         Samples from the RNN model, computing outputs for given inputs and initial state
-        :param input: Tensor of shape (batch_size, n_steps, n_inputs)
-        :param state: Initial state. Tensor of shape (batch_size, 1, n_hidden)
-        :return: outputs, states
+        :param input: Tensor of shape (n_steps, batch_size, n_inputs)
+        :param state: Initial state. List (length num_layers) of a tuple of 2 tensors of shape (batch_size, n_hidden[i])
+        :return: outputs (shape is (n_steps, batch_size, n_outputs)), states
         """
-        n_steps = input.get_shape()[1]
+        n_steps = input.get_shape()[0]
         n_input = input.get_shape()[2]
         print('n_steps', n_steps)
 
@@ -39,34 +56,46 @@ class SimpleLSTM(object):
         # Current data input shape: (batch_size, n_steps, n_input)
         # Required shape: 'n_steps' tensors list of shape (batch_size, n_input)
 
+        # print('input shape:', input.get_shape())
+        # # Permuting batch_size and n_steps
+        # x = tf.transpose(input, [1, 0, 2])
         print('input shape:', input.get_shape())
-        # Permuting batch_size and n_steps
-        x = tf.transpose(input, [1, 0, 2])
-        print('x shape:', x.get_shape())
         # Reshaping to (n_steps*batch_size, n_input)
         x = tf.reshape(input, tf.pack([-1, n_input])) # The pack is necessary because this is a mixed list of int and Tensor
         print('x shape (post reshape):', x.get_shape())
         # Split to get a list of 'n_steps' tensors of shape (batch_size, n_input)
         x = tf.split(0, n_steps, x)
         print('after splitting, x length and shape: ', [len(x), x[0].get_shape()])
+        print('state[0]: ', state[0])
 
-        # x = [tf.squeeze(item, [0]) for item in x]
-
-        print('x shape:', len(x), x[0].get_shape())
-        print('weights_out shape:', self.weights_out.get_shape())
+        print('weights_out shape[0]:', self.weights_out[0].get_shape())
 
         # Get lstm cell output
-        outputs, states = rnn.rnn(self.cell, x, initial_state=state, dtype=tf.float32)
-        print('outputs shape:', outputs[0].get_shape())
-        print('states shape:', states[0].get_shape()) # (batch_size, n_hidden)
+        for i in range(self.num_layers):
+            with tf.variable_scope("LSTM_model/layer_{}".format(i+1)):
+                outputs, states = rnn.rnn(self.cell[i], x, initial_state=state[i], dtype=tf.float32)
+                print('outputs shape:', outputs[0].get_shape())
+                print('states shape:', states[0].get_shape()) # (batch_size, n_hidden)
 
-        # Linear activation, using rnn inner loop
-        final_output = [tf.sigmoid(tf.matmul(output, self.weights_out) + self.biases_out) for output in outputs]
-        print('each final_outputs shape: ', final_output[0].get_shape())
+                # Linear activation, using rnn inner loop
+                final_output = [tf.sigmoid(tf.matmul(output, self.weights_out[i]) + self.biases_out[i]) for output in outputs]
+                print('each final_outputs shape: ', final_output[0].get_shape())
+                print('length of final_outputs: ', len(final_output))
+                x = final_output
+
         final_output = tf.pack(final_output)
         print(final_output.get_shape())
 
         return [final_output, states]
+
+##################################################################################################################
+
+class Stacked_LSTM(SimpleLSTM):
+    """
+    Uses the Tensorflow function rnn_cell.MultiRNNCell to create a stacked LSTM architecture
+    """
+    pass
+
 
 ##################################################################################################################
 

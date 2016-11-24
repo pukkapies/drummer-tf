@@ -7,6 +7,7 @@ def setup_training_data(loaded_data, batch_size):
         :param loaded_data: The loaded data returned from vecs.load_from_dir_root.
         :return: training_vars: dict with file_i as keys and list of three variables as value
         feed_dict: dict with placeholders as keys and training data as values
+                    NB placeholders/data shape (n_frames, batch_size, 3*max_sines)
         """
 
     #TODO: At the moment the batch_size has to be the same as the number of files in loaded_data
@@ -30,9 +31,14 @@ def setup_training_data(loaded_data, batch_size):
                 data.append(xtfreq_mag_phase)
 
         zero_start = np.zeros((batch_size, 1, 3 * max_sines))
-        data = np.stack(data) # (batch_size, n_frames, 3 * max_sines)
-        input_data = np.concatenate((zero_start, data[:, :-1, :]), axis=1) # Zero vector in the beginning, remove the last frame
+        data = np.stack(data)  # (batch_size, n_frames, 3 * max_sines)
+        input_data = np.concatenate((zero_start, data[:, :-1, :]), axis=1)  # Zero vector in the beginning, remove the last frame
         output_data = data
+
+        output_data = np.transpose(output_data, (1, 0, 2))  # (n_frames, batch_size, 3 * max_sines)
+        input_data = np.transpose(input_data, (1, 0, 2))  # (n_frames, batch_size, 3 * max_sines)
+
+        print('Data shapes: ', input_data.shape, output_data.shape)
 
         data_dict = {'output_data' : output_data, 'input_data': input_data}
         placeholders = {'output_data' : tf.placeholder(dtype=tf.float32, shape=(output_data.shape)),
