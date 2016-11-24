@@ -87,12 +87,6 @@ def main(args):
     input_data_shape = (1, 1, network_settings['n_inputs'])
 
 
-
-
-
-
-
-
     with tf.Session() as sess:
 
         n_hidden = network_settings['n_hidden']  # List of hidden unit sizes
