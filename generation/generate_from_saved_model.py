@@ -111,8 +111,8 @@ def main(args):
         state_placeholders = []
         states = []
         for lstm_layer in range(len(n_hidden)):
-            state_placeholders.append((tf.placeholder(tf.float32, shape=(1, n_hidden[lstm_layer])),  # batch_size = 1
-                                       tf.placeholder(tf.float32, shape=(1, n_hidden[lstm_layer]))))  # batch_size = 1
+            state_placeholders.append((tf.placeholder(tf.float32, shape=(1, n_hidden[lstm_layer]), name='cell'),  # batch_size = 1
+                                       tf.placeholder(tf.float32, shape=(1, n_hidden[lstm_layer]), name='hidden')))  # batch_size = 1
             states.append((np.zeros((1, n_hidden[lstm_layer])), np.zeros((1, n_hidden[lstm_layer]))))
             feed_dict[state_placeholders[lstm_layer]] = states[lstm_layer]
 
@@ -132,9 +132,13 @@ def main(args):
             # output, state = rnn.rnn(lstm.cell, input, initial_state=state, dtype=tf.float32)
             output, state = sess.run([lstm.prediction, lstm.state],
                                      feed_dict=feed_dict)
+            print('step = {}'.format(step))
             outputs_list.append(output)
-            # input = output
-            feed_dict[input_placeholder] = output
+            input = output
+            # Update feed_dict by giving the new input and states for all layers
+            feed_dict[input_placeholder] = input
+            for lstm_layer in range(len(n_hidden)):
+                feed_dict[state_placeholders[lstm_layer]] = state[lstm_layer]
 
         final_outputs = [tf.squeeze(output, [0]) for output in outputs_list]
         final_outputs = tf.pack(final_outputs)  # Make one tensor of rank 2
