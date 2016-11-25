@@ -88,12 +88,10 @@ def main():
             json_dict['sample_rate'] = sr
             json_dict['freq_range'] = freq_range
 
-            # if sr != SAMPLE_RATE:
-            #     print('')
-            #     raise Exception("The file {} has the wrong sample rate!".format(file))
-
             # All outputs of sineModelAnal are of the shape (numFrames, maxSines)
             xtfreq, xtmag, xtphase = sineModel.sineModelAnal(file, sr, w, N, H, THRESHOLD, maxnSines=MAX_N_SINES)
+
+            active_tracks = (xtfreq!=0.0).astype(int)
 
             # For plotting the spectrogram of the signal
             mX, pX = STFT.stftAnal(file, w, N, H)
@@ -105,6 +103,7 @@ def main():
             xtfreq = xtfreq / freq_range[1]
 
             #TODO: we might want to calculate this across all of the training data instead of file by file
+            #TODO: This will need modifying in the json file as well
             min_xtmag = np.min(xtmag)
             max_xtmag = np.max(xtmag[xtmag != 0]) # Recall tracks are separated by zeros - we want to ignore them
             xtmag[xtmag == 0] = min_xtmag # Could change this later to have the dB floor lower for the zeros
@@ -125,8 +124,9 @@ def main():
             np.save(output_path + 'freq', xtfreq)
             np.save(output_path + 'mag', xtmag)
             np.save(output_path + 'phase', xtphase)
+            np.save(output_path + 'active_tracks', active_tracks)
 
-            datalist.append([xtfreq, xtmag, xtphase])
+            datalist.append([xtfreq, xtmag, xtphase, active_tracks])
             print('Saved as {}'.format(output_path))
             file_count += 1
 

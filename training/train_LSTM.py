@@ -6,47 +6,7 @@ import os
 from nn_models.rnn_models import SimpleLSTM
 from .setup.setup_data import setup_training_data
 from .training_utils import Patience
-import subprocess
 from utils.utils import load_saved_model_to_resume_training
-
-
-# def load_saved_model_to_resume_training(saver, sess, model, is_file=False):
-#     """
-#     This function looks in the 'checkpoint' file to get the last saved model and restore it.
-#     NB: You can also just directly call e.g. saver.restore(sess, 'path_to_folder/model-20'
-#     :param saver: Saver object
-#     :param sess: Active session
-#     :param logdir: Folder path where model is saved
-#     :param is_file: If True, then the logdir should be a file which will be restored directly
-#     :return: The training iteration step if a model is found, otherwise None
-#     """
-#     print("Trying to restore saved checkpoints from {} ...".format(model), end='')
-#
-#     if is_file:
-#         saver.restore(sess, model)
-#         filename = model.split(sep='/')[-1]
-#         print("Trying to extract global step from filename {}".format(filename))
-#         global_step = [int(s) for s in str.split() if s.isdigit()]
-#         if len(global_step)==1:
-#             global_step = global_step[0]
-#         else:
-#             global_step = None
-#         return global_step
-#     else:
-#         ckpt = tf.train.get_checkpoint_state(model)
-#         if ckpt:
-#             print("  Checkpoint found: {}".format(ckpt.model_checkpoint_path))
-#             global_step = int(ckpt.model_checkpoint_path
-#                               .split('/')[-1]
-#                               .split('-')[-1])
-#             print("  Global step was: {}".format(global_step))
-#             print("  Restoring...", end="")
-#             saver.restore(sess, ckpt.model_checkpoint_path)
-#             print(" Done.")
-#             return global_step
-#         else:
-#             print(" No checkpoint found.")
-#             return None
 
 
 def main(args):
@@ -54,6 +14,7 @@ def main(args):
     # Each shape is (164, 100) = (numFrames, maxSines)
     # json_vector_settings is a dict with settings used for the SineModel
     loaded, json_vector_settings = vecs.load_from_dir_root(args.vector_folder)
+
     assert isinstance(loaded, list)
     n_hidden = args.lstm_hidden_units
 
