@@ -9,6 +9,9 @@ import soundfile
 import models.stft as STFT
 import plotting
 from nn_models.rnn_models import SimpleLSTM
+from datetime import datetime
+
+STARTED_DATESTRING = "{0:%Y-%m-%dT%H-%M-%S}".format(datetime.now())
 
 #TODO: Duplicate code from train_LSTM.py
 def load_saved_model_to_resume_training(saver, sess, logdir):
@@ -130,7 +133,8 @@ def main(args):
             output, state = sess.run([lstm.prediction, lstm.state],
                                      feed_dict=feed_dict)
             outputs_list.append(output)
-            input = output
+            # input = output
+            feed_dict[input_placeholder] = output
 
         final_outputs = [tf.squeeze(output, [0]) for output in outputs_list]
         final_outputs = tf.pack(final_outputs)  # Make one tensor of rank 2
@@ -163,6 +167,8 @@ def main(args):
     model_name = args.model_folder.split(sep='/')[-1]
     print('model_name:', model_name)
 
-    make_plots(sineModel_reconst, w, M, N, H, sr, xtfreq, filepath='./generation/plots/{}/'.format(model_name))
+    make_plots(sineModel_reconst, w, M, N, H, sr, xtfreq,
+               filepath='./generation/plots/{}-(generated_{})/'.format(model_name, STARTED_DATESTRING))
 
-    soundfile.write('./generation/wav_output/{}.wav'.format(model_name), sineModel_reconst, sinemodel_settings['sample_rate'], format='wav')
+    soundfile.write('./generation/wav_output/{}-(generated_{}).wav'.format(model_name, STARTED_DATESTRING),
+                    sineModel_reconst, sinemodel_settings['sample_rate'], format='wav')
