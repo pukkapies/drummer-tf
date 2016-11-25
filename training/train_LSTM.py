@@ -106,12 +106,17 @@ def main(args):
         # Saver for storing checkpoints of the model.
         saver = tf.train.Saver(var_list=tf.trainable_variables())
 
-        step = load_saved_model_to_resume_training(saver, sess, args.model_folder)
-        if step == None:  # Couldn't find a checkpoint to restore from
-            step = 0
-
         if args.model_folder[-1] != '/':
             args.model_folder = args.model_folder + '/' # Make sure logging info is saved correctly
+
+        if os.path.isfile(args.model_folder):
+            enclosing_model_folder = os.path.join(*args.model_folder.split(sep='/')[:-1])
+        else:
+            enclosing_model_folder = args.model_folder
+
+        step = load_saved_model_to_resume_training(saver, sess, enclosing_model_folder)
+        if step == None:  # Couldn't find a checkpoint to restore from
+            step = 0
 
         best_model_path = args.model_folder + 'best_model/'
         if not os.path.exists(best_model_path):

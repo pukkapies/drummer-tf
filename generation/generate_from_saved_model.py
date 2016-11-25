@@ -12,7 +12,16 @@ from nn_models.rnn_models import SimpleLSTM
 
 #TODO: Duplicate code from train_LSTM.py
 def load_saved_model_to_resume_training(saver, sess, logdir):
-    print("Trying to restore saved checkpoints from {} ...".format(logdir), end='')
+    """
+    This function looks in the 'checkpoint' file to get the last saved model and restore it.
+    NB: You can also just directly call e.g. saver.restore(sess, 'path_to_folder/model-20'
+    :param saver: Saver object
+    :param sess: Active session
+    :param logdir: Folder path where model is saved
+    :return: The training iteration step if a model is found, otherwise None
+    """
+
+    print("Trying to restore saved checkpoint from {} ...".format(logdir), end='')
 
     ckpt = tf.train.get_checkpoint_state(logdir)
     if ckpt:
@@ -109,8 +118,8 @@ def main(args):
         print([var.name for var in tf.all_variables()])
         saver = tf.train.Saver()
 
-        saver.restore(sess, args.model_folder)
-        # load_saved_model_to_resume_training(saver, sess, args.model_folder)
+        # saver.restore(sess, './training/saved_models/2016-11-25T08-54-35/model-20')
+        load_saved_model_to_resume_training(saver, sess, enclosing_model_folder)
 
         outputs_list = []
 

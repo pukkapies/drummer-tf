@@ -30,14 +30,13 @@ class SimpleLSTM(object):
         else:
             n_outputs = n_hidden[1:] + [n_outputs]
 
-        with tf.variable_scope("LSTM_model"):
-            for i in range(len(n_hidden)):
-                with tf.variable_scope('layer_{}'.format(i+1)):
-                    self.weights_out.append(tf.Variable(tf.random_normal([n_hidden[i], n_outputs[i]])))
-                    self.biases_out.append(tf.Variable(tf.random_normal([n_outputs[i]])))
-                    # The following doesn't yet create variables, so doesn't use the variable_scope
-                    self.cell.append(rnn_cell.BasicLSTMCell(n_hidden[i], forget_bias=1.0))
-                    print(self.cell[i])
+        for i in range(len(n_hidden)):
+            with tf.variable_scope('LSTM_model/layer_{}'.format(i+1)):
+                self.weights_out.append(tf.Variable(tf.random_normal([n_hidden[i], n_outputs[i]])))
+                self.biases_out.append(tf.Variable(tf.random_normal([n_outputs[i]])))
+                # The following doesn't yet create variables, so doesn't use the variable_scope
+                self.cell.append(rnn_cell.BasicLSTMCell(n_hidden[i], forget_bias=1.0))
+                print(self.cell[i])
 
         self.prediction, self.state = self.sample(input_placeholder, state_placeholder)
 
@@ -68,6 +67,7 @@ class SimpleLSTM(object):
         print('after splitting, x length and shape: ', [len(x), x[0].get_shape()])
         print('state[0]: ', state[0])
 
+        print('weights list length: ', len(self.weights_out))
         print('weights_out shape[0]:', self.weights_out[0].get_shape())
 
         # Get lstm cell output
