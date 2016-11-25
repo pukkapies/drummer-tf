@@ -7,26 +7,46 @@ from nn_models.rnn_models import SimpleLSTM
 from .setup.setup_data import setup_training_data
 from .training_utils import Patience
 import subprocess
+from utils.utils import load_saved_model_to_resume_training
 
 
-
-def load_saved_model_to_resume_training(saver, sess, logdir):
-    print("Trying to restore saved checkpoints from {} ...".format(logdir), end='')
-
-    ckpt = tf.train.get_checkpoint_state(logdir)
-    if ckpt:
-        print("  Checkpoint found: {}".format(ckpt.model_checkpoint_path))
-        global_step = int(ckpt.model_checkpoint_path
-                          .split('/')[-1]
-                          .split('-')[-1])
-        print("  Global step was: {}".format(global_step))
-        print("  Restoring...", end="")
-        saver.restore(sess, ckpt.model_checkpoint_path)
-        print(" Done.")
-        return global_step
-    else:
-        print(" No checkpoint found.")
-        return None
+# def load_saved_model_to_resume_training(saver, sess, model, is_file=False):
+#     """
+#     This function looks in the 'checkpoint' file to get the last saved model and restore it.
+#     NB: You can also just directly call e.g. saver.restore(sess, 'path_to_folder/model-20'
+#     :param saver: Saver object
+#     :param sess: Active session
+#     :param logdir: Folder path where model is saved
+#     :param is_file: If True, then the logdir should be a file which will be restored directly
+#     :return: The training iteration step if a model is found, otherwise None
+#     """
+#     print("Trying to restore saved checkpoints from {} ...".format(model), end='')
+#
+#     if is_file:
+#         saver.restore(sess, model)
+#         filename = model.split(sep='/')[-1]
+#         print("Trying to extract global step from filename {}".format(filename))
+#         global_step = [int(s) for s in str.split() if s.isdigit()]
+#         if len(global_step)==1:
+#             global_step = global_step[0]
+#         else:
+#             global_step = None
+#         return global_step
+#     else:
+#         ckpt = tf.train.get_checkpoint_state(model)
+#         if ckpt:
+#             print("  Checkpoint found: {}".format(ckpt.model_checkpoint_path))
+#             global_step = int(ckpt.model_checkpoint_path
+#                               .split('/')[-1]
+#                               .split('-')[-1])
+#             print("  Global step was: {}".format(global_step))
+#             print("  Restoring...", end="")
+#             saver.restore(sess, ckpt.model_checkpoint_path)
+#             print(" Done.")
+#             return global_step
+#         else:
+#             print(" No checkpoint found.")
+#             return None
 
 
 def main(args):
@@ -106,21 +126,18 @@ def main(args):
         # Saver for storing checkpoints of the model.
         saver = tf.train.Saver(var_list=tf.trainable_variables())
 
-        if args.model_folder[-1] != '/':
-            args.model_folder = args.model_folder + '/' # Make sure logging info is saved correctly
-
-        if os.path.isfile(args.model_folder):
-            enclosing_model_folder = os.path.join(*args.model_folder.split(sep='/')[:-1])
-        else:
-            enclosing_model_folder = args.model_folder
-
-        step = load_saved_model_to_resume_training(saver, sess, enclosing_model_folder)
+        step, model_folder = load_saved_model_to_resume_training(saver, sess, args.model_folder)
         if step == None:  # Couldn't find a checkpoint to restore from
             step = 0
 
-        best_model_path = args.model_folder + 'best_model/'
-        if not os.path.exists(best_model_path):
-            os.makedirs(best_model_path)
+        if model_folder.split(sep='/')[-1] == 'best_model':
+            best_model_folder = model_folder
+            model_folder = os.path.join(model_folder.split(sep='/')[:-1])
+        else:
+            best_model_folder = model_folder + 'best_model/'
+
+        if not os.path.exists(best_model_folder):
+            os.makedirs(best_model_folder)
 
         while step < args.num_training_steps:
 
@@ -153,10 +170,10 @@ def main(args):
             if new_best_cost and ((patience.learning_rates_index + 1 == len(args.learning_rates)) or step >= 3000):
                 # Save the model for a new best cost and delete the old saved model
                 # print('New best cost achieved, saving the model... ', end='')
-                for file in os.listdir(args.model_folder):
+                for file in os.listdir(best_model_folder):
                     if 'best_cost_model' in file:
-                        os.remove(args.model_folder + file)
-                saver.save(sess, best_model_path, global_step=step)
+                        os.remove(best_model_folder + file)
+                saver.save(sess, best_model_folder + 'best_cost_model', global_step=step)
                 # print('done.')
 
             if step % args.display_step == 0:
@@ -165,7 +182,7 @@ def main(args):
                                                                              time.time() - start_time))
             if step % args.save_every == 0:
                 print('Saving the model... ', end='')
-                saver.save(sess, args.model_folder + 'model', global_step=step)
+                saver.save(sess, model_folder + 'model', global_step=step)
                 print('done.')
             if step % 1000 == 0:
                 print('evaluating model... predicted followed by ground truth:')
@@ -174,11 +191,13 @@ def main(args):
 
         print("Maximum iterations reached... optimization Finished!")
         print(sess.run([pred, y], feed_dict=feed_dict))
-        saver.save(sess, args.model_folder + 'model', global_step=step)
+        saver.save(sess, model_folder + 'model', global_step=step)
 
         # git_label = subprocess.check_output(["git", "describe"])
         json_settings['best_cost'] = float(patience.best_cost)
         # json_settings['git_commit'] = git_label
-        with open(args.model_folder + 'network_settings.json', mode='w') as settings_file:
+        with open(model_folder + 'network_settings.json', mode='w') as settings_file:
+            json.dump(json_settings, settings_file)
+        with open(best_model_folder + 'network_settings.json', mode='w') as settings_file:
             json.dump(json_settings, settings_file)
 

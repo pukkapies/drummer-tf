@@ -6,6 +6,7 @@
 *.jpeg
 *.xml
 *.pyc
+*.DS_Store
 
 training/saved_models/
 training/logdir/

@@ -10,36 +10,10 @@ import models.stft as STFT
 import plotting
 from nn_models.rnn_models import SimpleLSTM
 from datetime import datetime
+from utils.utils import load_saved_model_to_resume_training
 
 STARTED_DATESTRING = "{0:%Y-%m-%dT%H-%M-%S}".format(datetime.now())
 
-#TODO: Duplicate code from train_LSTM.py
-def load_saved_model_to_resume_training(saver, sess, logdir):
-    """
-    This function looks in the 'checkpoint' file to get the last saved model and restore it.
-    NB: You can also just directly call e.g. saver.restore(sess, 'path_to_folder/model-20'
-    :param saver: Saver object
-    :param sess: Active session
-    :param logdir: Folder path where model is saved
-    :return: The training iteration step if a model is found, otherwise None
-    """
-
-    print("Trying to restore saved checkpoint from {} ...".format(logdir), end='')
-
-    ckpt = tf.train.get_checkpoint_state(logdir)
-    if ckpt:
-        print("  Checkpoint found: {}".format(ckpt.model_checkpoint_path))
-        global_step = int(ckpt.model_checkpoint_path
-                          .split('/')[-1]
-                          .split('-')[-1])
-        print("  Global step was: {}".format(global_step))
-        print("  Restoring...", end="")
-        saver.restore(sess, ckpt.model_checkpoint_path)
-        print(" Done.")
-        return global_step
-    else:
-        print(" No checkpoint found.")
-        return None
 
 def convert_network_output_to_sinemodel_input(xtfreq, xtmag, xtphase, sinemodel_settings):
     """
@@ -132,7 +106,6 @@ def main(args):
             # output, state = rnn.rnn(lstm.cell, input, initial_state=state, dtype=tf.float32)
             output, state = sess.run([lstm.prediction, lstm.state],
                                      feed_dict=feed_dict)
-            print('step = {}'.format(step))
             outputs_list.append(output)
             input = output
             # Update feed_dict by giving the new input and states for all layers

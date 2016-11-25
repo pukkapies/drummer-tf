@@ -32,6 +32,7 @@ class SimpleLSTM(object):
 
         for i in range(len(n_hidden)):
             with tf.variable_scope('LSTM_model/layer_{}'.format(i+1)):
+            # with tf.variable_scope('LSTM_model'):
                 self.weights_out.append(tf.Variable(tf.random_normal([n_hidden[i], n_outputs[i]])))
                 self.biases_out.append(tf.Variable(tf.random_normal([n_outputs[i]])))
                 # The following doesn't yet create variables, so doesn't use the variable_scope
@@ -45,7 +46,7 @@ class SimpleLSTM(object):
         Samples from the RNN model, computing outputs for given inputs and initial state
         :param input: Tensor of shape (n_steps, batch_size, n_inputs)
         :param state: Initial state. List (length num_layers) of a tuple of 2 tensors of shape (batch_size, n_hidden[i])
-        :return: outputs (shape is (n_steps, batch_size, n_outputs)), states
+        :return: outputs (shape is (n_steps, batch_size, n_outputs)), states (list of final states for each layer)
         """
         n_steps = input.get_shape()[0]
         n_input = input.get_shape()[2]
@@ -70,12 +71,15 @@ class SimpleLSTM(object):
         print('weights list length: ', len(self.weights_out))
         print('weights_out shape[0]:', self.weights_out[0].get_shape())
 
+        final_states = []
         # Get lstm cell output
         for i in range(self.num_layers):
             with tf.variable_scope("LSTM_model/layer_{}".format(i+1)):
+                # NB outputs is a list of length n_steps of network outputs, states is just the final state
                 outputs, states = rnn.rnn(self.cell[i], x, initial_state=state[i], dtype=tf.float32)
                 print('outputs shape:', outputs[0].get_shape())
                 print('states shape:', states[0].get_shape()) # (batch_size, n_hidden)
+                final_states.append(states)
 
                 # Linear activation, using rnn inner loop
                 final_output = [tf.sigmoid(tf.matmul(output, self.weights_out[i]) + self.biases_out[i]) for output in outputs]
@@ -86,7 +90,7 @@ class SimpleLSTM(object):
         final_output = tf.pack(final_output)
         print(final_output.get_shape())
 
-        return [final_output, states]
+        return [final_output, final_states]
 
 ##################################################################################################################
 
