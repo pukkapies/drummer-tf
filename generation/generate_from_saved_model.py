@@ -6,46 +6,16 @@ from tensorflow.python.ops import rnn, rnn_cell
 from models.utilFunctions import nextbiggestpower2, window_dictionary
 from models.sineModel import sineModelSynth
 import soundfile
-import models.stft as STFT
-import plotting
 from nn_models.rnn_models import SimpleLSTM
 from datetime import datetime
 from utils.utils import load_saved_model_to_resume_training
+from utils.sampling import binary_sample
+from generation.generation_utils import convert_network_output_to_sinemodel_input, make_plots
 
 STARTED_DATESTRING = "{0:%Y-%m-%dT%H-%M-%S}".format(datetime.now())
 
 
-def convert_network_output_to_sinemodel_input(xtfreq, xtmag, xtphase, sinemodel_settings):
-    """
-    Takes the output from the network and undoes the transformation applied to normalise
-    :param xtfreq: numpy array shape (n_frames, n_sines) normalised to be between 0 and 1
-    :param xtmag: numpy array shape (n_frames, n_sines) normalised to be between 0 and 1
-    :param xtphase: numpy array shape (n_frames, n_sines) normalised to be between 0 and 1
-    :param sinemodel_settings: dict that is saved in the json file with info on the transformation applied
-    :return: The untransformed arrays xtfreq, xtmag, xtphase
-    """
-    phase_range = sinemodel_settings['phase_range']
-    freq_range = sinemodel_settings['freq_range']
-    mag_range = sinemodel_settings['mag_range']
-
-    xtfreq_untransformed = freq_range[0] + (xtfreq * (freq_range[1] - freq_range[0]))
-    xtphase_untransformed = phase_range[0] + (xtphase * (phase_range[1] - phase_range[0]))
-    xtmag_untransformed = mag_range[0] + (xtmag * (mag_range[1] - mag_range[0]))
-
-    return xtfreq_untransformed, xtmag_untransformed, xtphase_untransformed
-
-def make_plots(waveform, w, M, N, H, sr, xtfreq, filepath=None):
-    if filepath:
-        if not os.path.exists(filepath):
-            os.makedirs(filepath)
-    mX, pX = STFT.stftAnal(waveform, w, N, H)
-    plotting.plot_sineTracks(mX, pX, M, N, H, sr, xtfreq, show=False,
-                             filepath=filepath + 'model_sinetracks')
-    plotting.spectogram_plot(mX, pX, M, N, H, sr, show=False, filepath=filepath + 'model_spectogram')
-
-
 def main(args):
-
     # Verify model folder
     if not os.path.exists(args.model_folder):
         raise Exception("Model folder does not exist!")
@@ -59,6 +29,11 @@ def main(args):
         enclosing_model_folder = os.path.join(*args.model_folder.split(sep='/')[:-1])
     else:
         enclosing_model_folder = args.model_folder
+
+    if enclosing_model_folder.split(sep='/')[-1] == 'best_model':
+        model_name = enclosing_model_folder.split(sep='/')[-2]
+    else:
+        model_name = enclosing_model_folder.split(sep='/')[-1]
 
     with open(enclosing_model_folder + settings_json_string, 'r') as f:
         network_settings = json.load(f)
@@ -126,22 +101,24 @@ def main(args):
 
     xtfreq = result[:, :100]
     xtmag = result[:, 100:200]
-    xtphase = result[:, 200:]
+    xtphase = result[:, 200:300]
+    active_tracks = result[:, 300:]
 
-    print(xtfreq.shape, xtmag.shape, xtphase.shape)
+    assert xtfreq.shape == xtmag.shape == xtphase.shape == active_tracks.shape
+
+    print(xtfreq.shape, xtmag.shape, xtphase.shape, active_tracks.shape)
 
     xtfreq, xtmag, xtphase = convert_network_output_to_sinemodel_input(xtfreq, xtmag, xtphase, sinemodel_settings)
 
-    print(xtfreq.shape, xtmag.shape, xtphase.shape)
+    sampled_active_tracks = binary_sample(active_tracks)
+    xtfreq *= sampled_active_tracks
+
+    print(sampled_active_tracks)
 
     # NB note that the reconstructed model is probably a bit shorter than the original, because of the hop size
     # not exactly dividing the signal length
     sineModel_reconst = sineModelSynth(xtfreq, xtmag, xtphase, nextbiggestpower2(sinemodel_settings['M']), H, sr)
 
-    print(args.model_folder)
-
-    print(args.model_folder.split(sep='/'))
-    model_name = args.model_folder.split(sep='/')[-1]
     print('model_name:', model_name)
 
     make_plots(sineModel_reconst, w, M, N, H, sr, xtfreq,
