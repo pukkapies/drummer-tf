@@ -38,7 +38,8 @@ def load_npy(filepath):
     xtfreq = np.load(filepath + '/freq.npy')
     xtmag = np.load(filepath + '/mag.npy')
     xtphase = np.load(filepath + '/phase.npy')
-    return xtfreq, xtmag, xtphase
+    active_tracks = np.load(filepath + '/active_tracks.npy')
+    return xtfreq, xtmag, xtphase, active_tracks
 
 def load_from_dir_root(rootdir):
     if not os.path.exists(rootdir):
@@ -49,11 +50,11 @@ def load_from_dir_root(rootdir):
         json_vector_settings_dict = json.load(json_file)
     loaded_data = []
     for root, dir, filenames in os.walk(rootdir):
-        if all(x in filenames for x in ['freq.npy', 'mag.npy', 'phase.npy']):
+        if all(x in filenames for x in ['freq.npy', 'mag.npy', 'phase.npy', 'active_tracks.npy']):
             print('Loading files from {}...'.format(root), end='')
-            xtfreq, xtmag, xtphase = load_npy(root)
+            xtfreq, xtmag, xtphase, active_tracks = load_npy(root)
             print('done')
-            loaded_data.append([xtfreq, xtmag, xtphase])
+            loaded_data.append([xtfreq, xtmag, xtphase, active_tracks])
     return loaded_data, json_vector_settings_dict
 
 def create_json(settings_file, json_dict):

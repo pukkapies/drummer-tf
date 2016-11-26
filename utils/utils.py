@@ -26,10 +26,13 @@ def load_saved_model_to_resume_training(saver, sess, model, is_file=False):
         return global_step, model_folder
     else:
         if 'best_model' in os.listdir(model):
-            model_folder = os.path.join(*(model.split(sep='/') + ['best_model']))
+            model_folder = os.path.join(*(model.split(sep='/') + ['best_model/']))
             print("Found best_model folder, trying to restore from here...")
         else:
-            model_folder = model
+            if model[-1] != '/':
+                model_folder = model + '/'
+            else:
+                model_folder = model
         ckpt = tf.train.get_checkpoint_state(model_folder)
         if ckpt:
             print("  Checkpoint found: {}".format(ckpt.model_checkpoint_path))

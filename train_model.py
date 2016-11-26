@@ -12,7 +12,7 @@ BATCH_SIZE = 3
 STARTED_DATESTRING = "{0:%Y-%m-%dT%H-%M-%S}".format(datetime.now())
 DISPLAY_STEP = 10
 SAVE_EVERY = 500
-CHECKPOINT_EVERY = 200
+CHECKPOINT_EVERY = 500
 MAX_PATIENCE = 500
 
 N_HIDDEN = [1000] # hidden layer num of features in LSTM

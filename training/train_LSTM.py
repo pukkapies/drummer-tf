@@ -23,8 +23,9 @@ def main(args):
 
     n_steps = loaded[0][0].shape[0]
     n_sines = loaded[0][0].shape[1]
-    n_outputs = 3 * n_sines # output prediction
-    n_input = 3 * n_sines   # n_sines frequencies, amplitudes, phases
+    n_input = sum([loaded[0][i].shape[1] for i in range(len(loaded[0]))])
+
+    n_outputs = n_input  # frequencies, amplitudes, phases, active_tracks
     print((n_outputs, n_input))
 
     json_settings = {'n_hidden': n_hidden,
@@ -48,7 +49,7 @@ def main(args):
     print([var.name for var in tf.all_variables()])
 
     # pred = setup_non_self_updating_rnn(x, n_hidden[0], n_outputs)
-    print('pred shape: ', pred.get_shape()) # (batch_size, n_steps, 3*max_sines)
+    print('pred shape: ', pred.get_shape()) # (batch_size, n_steps, 4*max_sines)
     print('y shape:', y.get_shape())
 
     print('y - pred shape:', (y-pred).get_shape())
@@ -93,7 +94,8 @@ def main(args):
 
         if model_folder.split(sep='/')[-1] == 'best_model':
             best_model_folder = model_folder
-            model_folder = os.path.join(model_folder.split(sep='/')[:-1])
+            model_folder = os.path.join(*(model_folder.split(sep='/')[:-1]))
+            print("Using best model folder. best_model_folder = {}, model_folder = {}".format(best_model_folder, model_folder))
         else:
             best_model_folder = model_folder + 'best_model/'
 

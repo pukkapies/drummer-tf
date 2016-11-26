@@ -25,18 +25,19 @@ def setup_training_data(loaded_data, batch_size):
     with tf.variable_scope("training_data"):
         for i in range(num_files):
             with tf.variable_scope('file_{}'.format(i)):
-                assert len(loaded_data[i]) == 3  # Should be xtfreq, xtmag, xtphase
+                assert len(loaded_data[i]) == 4  # Should be xtfreq, xtmag, xtphase, active_tracks
 
-                xtfreq_mag_phase = np.hstack((loaded_data[i][0], loaded_data[i][1], loaded_data[i][2]))
-                data.append(xtfreq_mag_phase)
+                xtfreq_mag_phase_active = np.hstack((loaded_data[i][0], loaded_data[i][1],
+                                                     loaded_data[i][2], loaded_data[i][3]))
+                data.append(xtfreq_mag_phase_active)
 
-        zero_start = np.zeros((batch_size, 1, 3 * max_sines))
-        data = np.stack(data)  # (batch_size, n_frames, 3 * max_sines)
+        zero_start = np.zeros((batch_size, 1, 4 * max_sines))
+        data = np.stack(data)  # (batch_size, n_frames, 4 * max_sines)
         input_data = np.concatenate((zero_start, data[:, :-1, :]), axis=1)  # Zero vector in the beginning, remove the last frame
         output_data = data
 
-        output_data = np.transpose(output_data, (1, 0, 2))  # (n_frames, batch_size, 3 * max_sines)
-        input_data = np.transpose(input_data, (1, 0, 2))  # (n_frames, batch_size, 3 * max_sines)
+        output_data = np.transpose(output_data, (1, 0, 2))  # (n_frames, batch_size, 4 * max_sines)
+        input_data = np.transpose(input_data, (1, 0, 2))  # (n_frames, batch_size, 4 * max_sines)
 
         print('Data shapes: ', input_data.shape, output_data.shape)
 
