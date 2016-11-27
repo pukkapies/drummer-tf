@@ -4,12 +4,13 @@ import json
 import os
 from models.utilFunctions import nextbiggestpower2, window_dictionary
 from models.sineModel import sineModelSynth
+from models.stft import stftSynth
 import soundfile
 from nn_models.rnn_models import SimpleLSTM
 from datetime import datetime
 from utils.utils import load_saved_model_to_resume_training
-from utils.sampling import binary_sample
-from generation.generation_utils import convert_network_output_to_sinemodel_input, make_plots
+from generation.generation_utils import SineModelOutputProcessing, SineModelOutputProcessingWithActiveTracking
+from generation.generation_utils import STFTModelOutputProcessing
 
 STARTED_DATESTRING = "{0:%Y-%m-%dT%H-%M-%S}".format(datetime.now())
 
@@ -37,12 +38,13 @@ def main(args):
     with open(enclosing_model_folder + settings_json_string, 'r') as f:
         network_settings = json.load(f)
 
-    sinemodel_settings = network_settings['SineModel_settings']
-    M = sinemodel_settings['M']
-    H = sinemodel_settings['H']
-    w = window_dictionary.get(sinemodel_settings['w'])(M)
-    N = sinemodel_settings['N']
-    sr = sinemodel_settings['sample_rate']
+    analysis_type = network_settings['analysis_type']
+    analysis_settings = network_settings[analysis_type + '_settings']
+    M = analysis_settings['M']
+    H = analysis_settings['H']
+    w = window_dictionary.get(analysis_settings['w'])(M)
+    N = analysis_settings['N']
+    sr = analysis_settings['sample_rate']
 
     input_data_shape = (1, 1, network_settings['n_inputs'])
 
@@ -66,7 +68,6 @@ def main(args):
 
         lstm = SimpleLSTM(input_placeholder, state_placeholders, n_hidden, network_settings['n_outputs'])
 
-        print([var.name for var in tf.all_variables()])
         saver = tf.train.Saver()
 
         # saver.restore(sess, './training/saved_models/2016-11-25T08-54-35/model-20')
@@ -98,30 +99,50 @@ def main(args):
         # For testing - just batch size = 1
         result = tf.squeeze(final_outputs, [0]).eval()
 
-    xtfreq = result[:, :100]
-    xtmag = result[:, 100:200]
-    xtphase = result[:, 200:300]
-    active_tracks = result[:, 300:]
 
-    assert xtfreq.shape == xtmag.shape == xtphase.shape == active_tracks.shape
+    if analysis_type == 'sine_model':
+        process_output = SineModelOutputProcessing(result, network_settings)
+        xtfreq, xtmag, xtphase = process_output.convert_network_output_to_analysis_model_input()
+        reconstruction = sineModelSynth(xtfreq, xtmag, xtphase, nextbiggestpower2(analysis_settings['M']), H, sr)
+    elif analysis_type == 'sine_model_without_active_tracking':  # deprecated
+        process_output = SineModelOutputProcessingWithActiveTracking(result, network_settings)
+        xtfreq, xtmag, xtphase = process_output.convert_network_output_to_analysis_model_input()
+        reconstruction = sineModelSynth(xtfreq, xtmag, xtphase, nextbiggestpower2(analysis_settings['M']), H, sr)
+    elif analysis_type == 'stft':
+        process_output = STFTModelOutputProcessing(result, network_settings)
+        xtmag, xtphase = process_output.convert_network_output_to_analysis_model_input()
+        reconstruction = stftSynth(xtmag, xtphase, analysis_settings['M'], H)
+    else:
+        raise Exception('analysis_type not recognised!')
 
-    print(xtfreq.shape, xtmag.shape, xtphase.shape, active_tracks.shape)
 
-    xtfreq, xtmag, xtphase = convert_network_output_to_sinemodel_input(xtfreq, xtmag, xtphase, sinemodel_settings)
-
-    sampled_active_tracks = binary_sample(active_tracks)
-    xtfreq *= sampled_active_tracks
-
-    print(sampled_active_tracks)
+    #
+    #
+    # xtfreq = result[:, :100]
+    # xtmag = result[:, 100:200]
+    # xtphase = result[:, 200:300]
+    # active_tracks = result[:, 300:]
+    #
+    # assert xtfreq.shape == xtmag.shape == xtphase.shape == active_tracks.shape
+    #
+    # print(xtfreq.shape, xtmag.shape, xtphase.shape, active_tracks.shape)
+    #
+    # xtfreq, xtmag, xtphase = convert_network_output_to_sinemodel_input(xtfreq, xtmag, xtphase, analysis_settings)
+    #
+    # sampled_active_tracks = binary_sample(active_tracks)
+    # xtfreq *= sampled_active_tracks
+    #
+    # print(sampled_active_tracks)
 
     # NB note that the reconstructed model is probably a bit shorter than the original, because of the hop size
     # not exactly dividing the signal length
-    sineModel_reconst = sineModelSynth(xtfreq, xtmag, xtphase, nextbiggestpower2(sinemodel_settings['M']), H, sr)
+    # sineModel_reconst = sineModelSynth(xtfreq, xtmag, xtphase, nextbiggestpower2(analysis_settings['M']), H, sr)
 
     print('model_name:', model_name)
 
-    make_plots(sineModel_reconst, w, M, N, H, sr, xtfreq,
+    #TODO: extract more of these arguments in the class methods
+    process_output.make_plots(reconstruction, w, M, N, H, sr,
                filepath='./generation/plots/{}-(generated_{})/'.format(model_name, STARTED_DATESTRING))
 
     soundfile.write('./generation/wav_output/{}-(generated_{}).wav'.format(model_name, STARTED_DATESTRING),
-                    sineModel_reconst, sinemodel_settings['sample_rate'], format='wav')
+                    reconstruction, analysis_settings['sample_rate'], format='wav')

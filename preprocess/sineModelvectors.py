@@ -68,8 +68,8 @@ def main():
     file_count = 0
     datalist = []
 
-    json_settings_file = OUTPUT_FOLDER + '/SineModel_settings.json'
-    json_dict = {'N': N, 'M': M, 'H': H, 'w': window, 'phase_range': [0, 2 * np.pi]}
+    json_settings_file = OUTPUT_FOLDER + '/sine_model_settings.json'
+    json_dict = {'N': N, 'M': M, 'H': H, 'w': window, 'phase_range': [0, 2 * np.pi], 'max_sines': MAX_N_SINES}
 
     print("Loading files in {}".format(FOLDER_LIST))
     for folder in FOLDER_LIST:

@@ -34,7 +34,8 @@ def main(args):
                      'n_outputs': n_outputs,
                      'n_inputs': n_input,
                      'n_steps': n_steps,
-                     'SineModel_settings': json_vector_settings}
+                     analysis_type + '_settings': json_vector_settings,
+                     'analysis_type': analysis_type}
 
     placeholders, data_dict = setup_training_data(loaded, args.batch_size)
 
