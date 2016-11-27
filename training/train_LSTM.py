@@ -38,8 +38,6 @@ def main(args):
                      'n_steps': n_steps,
                      'SineModel_settings': json_vector_settings}
 
-    NUM_TRAINING_FILES = len(loaded)
-
     placeholders, data_dict = setup_training_data(loaded, args.batch_size)
 
     y = placeholders['output_data']
@@ -49,8 +47,6 @@ def main(args):
 
     lstm = SimpleLSTM(x, initial_states, n_hidden, n_outputs)
     pred = lstm.prediction
-
-    print([var.name for var in tf.all_variables()])
 
     # pred = setup_non_self_updating_rnn(x, n_hidden[0], n_outputs)
     print('pred shape: ', pred.get_shape()) # (batch_size, n_steps, 4*max_sines)
@@ -80,7 +76,6 @@ def main(args):
     summaries = tf.merge_all_summaries()
 
     # Initializing the variables
-
     init = tf.initialize_all_variables()
 
     # Launch the graph
@@ -107,10 +102,7 @@ def main(args):
             os.makedirs(best_model_folder)
 
         while step < args.num_training_steps:
-
             start_time = time.time()
-
-            # print(sess.run(grads, feed_dict=feed_dict_for_training_vars))
 
             summary, _ = sess.run([summaries, optimize], feed_dict=feed_dict)
             writer.add_summary(summary, step)

@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.signal import resample, blackmanharris, triang
+from scipy.signal import resample, blackmanharris, triang, hanning, hamming
 from scipy.fftpack import fft, ifft, fftshift
 import math, copy, sys, os
 from scipy.io.wavfile import write, read
@@ -7,7 +7,9 @@ from sys import platform
 import subprocess
 
 window_dictionary = {'blackmanharris': blackmanharris,
-                     'triangle': triang
+                     'triangle': triang,
+                     'hanning': hanning,
+                     'hamming': hamming
                      }
 
 def isPower2(num):
