@@ -28,7 +28,7 @@ class NetworkOutputProcessing(object):
 
 class SineModelOutputProcessing(NetworkOutputProcessing):
     def check_network_output(self):
-        self.max_sines = self.settings['max_sines']
+        self.max_sines = self.settings['sine_model_settings']['max_sines']
         assert self.result.shape[1] == 3 * self.max_sines
 
     def convert_network_output_to_analysis_model_input(self):
@@ -46,39 +46,37 @@ class SineModelOutputProcessing(NetworkOutputProcessing):
 
         assert self.xtfreq.shape == self.xtmag.shape == self.xtphase.shape
 
-        phase_range = self.settings['sinemodel_settings']['phase_range']
-        freq_range = self.settings['sinemodel_settings']['freq_range']
-        mag_range = self.settings['sinemodel_settings']['mag_range']
+        phase_range = self.settings['sine_model_settings']['phase_range']
+        freq_range = self.settings['sine_model_settings']['freq_range']
+        mag_range = self.settings['sine_model_settings']['mag_range']
 
         # Unnormalise
-        xtfreq = freq_range[0] + (self.xtfreq * (freq_range[1] - freq_range[0]))
-        xtphase = phase_range[0] + (self.xtphase * (phase_range[1] - phase_range[0]))
-        xtmag = mag_range[0] + (self.xtmag * (mag_range[1] - mag_range[0]))
+        self.xtfreq = freq_range[0] + (self.xtfreq * (freq_range[1] - freq_range[0]))
+        self.xtphase = phase_range[0] + (self.xtphase * (phase_range[1] - phase_range[0]))
+        self.xtmag = mag_range[0] + (self.xtmag * (mag_range[1] - mag_range[0]))
 
-        return xtfreq, xtmag, xtphase
+        return self.xtfreq, self.xtmag, self.xtphase
 
     def make_plots(self, waveform, w, M, N, H, sr, filepath=None):
-        super(SineModelOutputProcessing, self).make_plots(waveform, w, M, N, H, sr, self.xtfreq, filepath)
+        super(SineModelOutputProcessing, self).make_plots(waveform, w, M, N, H, sr, filepath)
         plotting.plot_sineTracks(self.mX, self.pX, M, N, H, sr, self.xtfreq, show=False,
                                  filepath=filepath + 'model_sinetracks')
 
 
 class SineModelOutputProcessingWithActiveTracking(SineModelOutputProcessing):
     def check_network_output(self):
-        max_sines = self.settings['max_sines']
-        assert self.result.shape[1] == 4 * max_sines
+        self.max_sines = self.settings['sine_model_settings']['max_sines']
+        assert self.result.shape[1] == 4 * self.max_sines
 
     def convert_network_output_to_analysis_model_input(self):
-        active_tracks = self.result[:, 3 * self.max_sines: 4 * self.max_sines]
+        self.active_tracks = self.result[:, 3 * self.max_sines: 4 * self.max_sines]
 
+        super(SineModelOutputProcessingWithActiveTracking, self).convert_network_output_to_analysis_model_input()
         assert self.xtfreq.shape == self.xtmag.shape == self.xtphase.shape == self.active_tracks.shape
+        sampled_active_tracks = binary_sample(self.active_tracks)
+        self.xtfreq *= sampled_active_tracks
 
-        xtfreq, xtphase, xtmag = super(SineModelOutputProcessingWithActiveTracking,
-                                       self).convert_network_output_to_analysis_model_input()
-        sampled_active_tracks = binary_sample(active_tracks)
-        xtfreq *= sampled_active_tracks
-
-        return xtfreq, xtmag, xtphase
+        return self.xtfreq, self.xtmag, self.xtphase
 
 
 class STFTModelOutputProcessing(NetworkOutputProcessing):
@@ -96,7 +94,7 @@ class STFTModelOutputProcessing(NetworkOutputProcessing):
         mag_range = self.settings['sinemodel_settings']['mag_range']
 
         # Unnormalise
-        xtphase = phase_range[0] + (self.xtphase * (phase_range[1] - phase_range[0]))
-        xtmag = mag_range[0] + (self.xtmag * (mag_range[1] - mag_range[0]))
+        self.xtphase = phase_range[0] + (self.xtphase * (phase_range[1] - phase_range[0]))
+        self.xtmag = mag_range[0] + (self.xtmag * (mag_range[1] - mag_range[0]))
 
-        return xtmag, xtphase
+        return self.xtmag, self.xtphase

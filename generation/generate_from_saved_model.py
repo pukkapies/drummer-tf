@@ -101,11 +101,11 @@ def main(args):
 
 
     if analysis_type == 'sine_model':
-        process_output = SineModelOutputProcessing(result, network_settings)
+        process_output = SineModelOutputProcessingWithActiveTracking(result, network_settings)
         xtfreq, xtmag, xtphase = process_output.convert_network_output_to_analysis_model_input()
         reconstruction = sineModelSynth(xtfreq, xtmag, xtphase, nextbiggestpower2(analysis_settings['M']), H, sr)
     elif analysis_type == 'sine_model_without_active_tracking':  # deprecated
-        process_output = SineModelOutputProcessingWithActiveTracking(result, network_settings)
+        process_output = SineModelOutputProcessing(result, network_settings)
         xtfreq, xtmag, xtphase = process_output.convert_network_output_to_analysis_model_input()
         reconstruction = sineModelSynth(xtfreq, xtmag, xtphase, nextbiggestpower2(analysis_settings['M']), H, sr)
     elif analysis_type == 'stft':
