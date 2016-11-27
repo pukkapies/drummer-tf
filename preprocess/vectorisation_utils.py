@@ -23,12 +23,12 @@ def load_from_dir_root(rootdir):
     :param rootdir: Path to the root directory where all data is saved
     :param filenames: List of filenames that comprise the data, e.g. ['mag.npy', 'phase.npy']
     :param analysis_type: String, e.g. 'stft' or 'sine_model'
-    :return: loaded_data list of lists, dict of vectorisation settings
+    :return: loaded_data list of lists, dict of vectorisation settings, analysis_type
     """
     analysis_type = rootdir.split(sep='/')[2]
     assert analysis_type in filenames_list_dict.keys()
 
-    filenames_list = filenames_list_dict['analysis_type']
+    filenames_list = filenames_list_dict[analysis_type]
     if not os.path.exists(rootdir):
         raise InvalidPathError("{} does not exist!".format(rootdir))
     if not os.path.exists(rootdir + '/{}_settings.json'.format(analysis_type)):
@@ -43,7 +43,7 @@ def load_from_dir_root(rootdir):
             print(data)
             print('done')
             loaded_data.append(data)
-    return loaded_data, json_vector_settings_dict
+    return loaded_data, json_vector_settings_dict, analysis_type
 
 def create_json(settings_file, json_dict):
     with open(settings_file, 'w') as json_file:
