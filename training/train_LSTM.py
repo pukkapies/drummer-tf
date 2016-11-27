@@ -8,17 +8,14 @@ from .setup.setup_data import setup_training_data
 from .training_utils import Patience
 from utils.utils import load_saved_model_to_resume_training
 
-SUPPORTED_ANALYSIS_TYPES = ['sine_model', 'stft']
-
 
 def main(args):
-    analysis_type = args.vector_folder.split(sep='/')[2]
-    assert analysis_type in SUPPORTED_ANALYSIS_TYPES
+
 
     # loaded is a list of lists. Each sublist is length 3, with np.array entries of xtfreq, xtmag, xtphase
     # Each shape is (164, 100) = (numFrames, maxSines)
     # json_vector_settings is a dict with settings used for the SineModel
-    loaded, json_vector_settings = load_from_dir_root(args.vector_folder, analysis_type)
+    loaded, json_vector_settings = load_from_dir_root(args.vector_folder)
 
     if not os.path.exists(args.model_folder):
         print("Model folder does not exist, training new model.")
