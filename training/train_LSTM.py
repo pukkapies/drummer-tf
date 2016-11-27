@@ -4,7 +4,7 @@ import json
 import time
 import os
 from nn_models.rnn_models import SimpleLSTM
-from .setup.setup_data import setup_training_data, setup_training_data_for_stft
+from .setup.setup_data import setup_training_data
 from .training_utils import Patience
 from utils.utils import load_saved_model_to_resume_training
 
@@ -28,8 +28,7 @@ def main(args):
     n_steps = loaded[0][0].shape[0]
     n_input = sum([loaded[0][i].shape[1] for i in range(len(loaded[0]))])
 
-    n_outputs = n_input  # frequencies, amplitudes, phases, active_tracks
-    print((n_outputs, n_input))
+    n_outputs = n_input
 
     json_settings = {'n_hidden': n_hidden,
                      'n_outputs': n_outputs,
@@ -37,13 +36,7 @@ def main(args):
                      'n_steps': n_steps,
                      'SineModel_settings': json_vector_settings}
 
-    #TODO: This is crap. Change it
-    if analysis_type == 'sine_model':
-        placeholders, data_dict = setup_training_data(loaded, args.batch_size)
-    elif analysis_type == 'stft':
-        placeholders, data_dict = setup_training_data_for_stft(loaded, args.batch_size)
-    else:
-        asdfkjasdflkajh
+    placeholders, data_dict = setup_training_data(loaded, args.batch_size)
 
     y = placeholders['output_data']
     x = placeholders['input_data']
