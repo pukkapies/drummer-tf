@@ -99,7 +99,6 @@ def main(args):
         # For testing - just batch size = 1
         result = tf.squeeze(final_outputs, [0]).eval()
 
-
     if analysis_type == 'sine_model':
         process_output = SineModelOutputProcessingWithActiveTracking(result, network_settings)
         xtfreq, xtmag, xtphase = process_output.convert_network_output_to_analysis_model_input()
@@ -115,29 +114,6 @@ def main(args):
     else:
         raise Exception('analysis_type not recognised!')
 
-
-    #
-    #
-    # xtfreq = result[:, :100]
-    # xtmag = result[:, 100:200]
-    # xtphase = result[:, 200:300]
-    # active_tracks = result[:, 300:]
-    #
-    # assert xtfreq.shape == xtmag.shape == xtphase.shape == active_tracks.shape
-    #
-    # print(xtfreq.shape, xtmag.shape, xtphase.shape, active_tracks.shape)
-    #
-    # xtfreq, xtmag, xtphase = convert_network_output_to_sinemodel_input(xtfreq, xtmag, xtphase, analysis_settings)
-    #
-    # sampled_active_tracks = binary_sample(active_tracks)
-    # xtfreq *= sampled_active_tracks
-    #
-    # print(sampled_active_tracks)
-
-    # NB note that the reconstructed model is probably a bit shorter than the original, because of the hop size
-    # not exactly dividing the signal length
-    # sineModel_reconst = sineModelSynth(xtfreq, xtmag, xtphase, nextbiggestpower2(analysis_settings['M']), H, sr)
-
     print('model_name:', model_name)
 
     #TODO: extract more of these arguments in the class methods
@@ -146,3 +122,7 @@ def main(args):
 
     soundfile.write('./generation/wav_output/{}-(generated_{}).wav'.format(model_name, STARTED_DATESTRING),
                     reconstruction, analysis_settings['sample_rate'], format='wav')
+    #
+    # np.save('./xtfreq', xtfreq)
+    # np.save('./xtmag', xtmag)
+    # np.save('./xtphase', xtphase)
