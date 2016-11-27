@@ -12,8 +12,8 @@ import warnings
 
 
 FOLDER_LIST = ['./data']
-OUTPUT_FOLDER = './vectors'
-PLOT_FOLDER = './plots'
+OUTPUT_FOLDER = './sine_model/vectors'
+PLOT_FOLDER = './sine_model/plots'
 SAMPLE_RATE = 44100 # Assume all files to be loaded have the same sample rate, or raise an error
 
 # Sinusoidal model parameters

@@ -15,6 +15,10 @@ def main(args):
     # json_vector_settings is a dict with settings used for the SineModel
     loaded, json_vector_settings = vecs.load_from_dir_root(args.vector_folder)
 
+    if not os.path.exists(args.model_folder):
+        print("Model folder does not exist, training new model.")
+        os.makedirs(args.model_folder)
+
     assert isinstance(loaded, list)
     n_hidden = args.lstm_hidden_units
 

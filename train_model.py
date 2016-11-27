@@ -3,7 +3,7 @@ from datetime import datetime
 import os
 from training.train_LSTM import main
 
-VECTOR_FOLDER = "./preprocess/vectors"
+VECTOR_FOLDER = "./preprocess/sine_model/vectors/dataset_d_4_p_60"
 
 # Training parameters
 LEARNING_RATE_LIST = [0.001, 0.0001, 0.00001]
@@ -89,8 +89,6 @@ if __name__ == '__main__':
 
     if args.model_folder is None:
         args.model_folder = MODEL_FOLDER + '/' + STARTED_DATESTRING
-    elif not os.path.exists(args.model_folder):
-        raise Exception("Model folder does not exist!")
 
     if not os.path.exists(VECTOR_FOLDER):
         raise Exception('{} not found'.format(VECTOR_FOLDER))

@@ -2,7 +2,6 @@ import tensorflow as tf
 import numpy as np
 import json
 import os
-from tensorflow.python.ops import rnn, rnn_cell
 from models.utilFunctions import nextbiggestpower2, window_dictionary
 from models.sineModel import sineModelSynth
 import soundfile
