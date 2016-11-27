@@ -2,6 +2,10 @@ import numpy as np
 import os
 import json
 
+filenames_list_dict = {'stft': ['mag.npy', 'phase.npy'],
+                       'sine_model': ['freq.npy', 'mag.npy', 'phase.npy', 'active_tracks.npy']}
+
+
 class InvalidPathError(Exception): pass
 
 def load_npy(filepath, filenames_list):
@@ -12,7 +16,7 @@ def load_npy(filepath, filenames_list):
         data.append(np.load(filepath + '/' + filenames_list[i]))
     return data
 
-def load_from_dir_root(rootdir, filenames_list, analysis_type):
+def load_from_dir_root(rootdir, analysis_type):
     """
     Loads all data saved in a given folder. Searches through all subfolders and finds every folder that contains
     the file names listed in 'filenames'. Returns them in the list 'loaded_data'. Also searches for the
@@ -20,8 +24,9 @@ def load_from_dir_root(rootdir, filenames_list, analysis_type):
     :param rootdir: Path to the root directory where all data is saved
     :param filenames: List of filenames that comprise the data, e.g. ['mag.npy', 'phase.npy']
     :param analysis_type: String, e.g. 'stft' or 'sine_model'
-    :return: loaded_data list of tuples, dict of vectorisation settings
+    :return: loaded_data list of lists, dict of vectorisation settings
     """
+    filenames_list = filenames_list_dict['analysis_type']
     if not os.path.exists(rootdir):
         raise InvalidPathError("{} does not exist!".format(rootdir))
     if not os.path.exists(rootdir + '/{}_settings.json'.format(analysis_type)):

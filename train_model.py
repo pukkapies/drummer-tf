@@ -3,6 +3,7 @@ from datetime import datetime
 import os
 from training.train_LSTM import main
 
+
 VECTOR_FOLDER = "./preprocess/sine_model/vectors/dataset_d_4_p_60"
 
 # Training parameters
