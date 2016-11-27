@@ -2,13 +2,12 @@ import models.utilFunctions as UF
 from models.utilFunctions import nextbiggestpower2, window_dictionary
 import soundfile
 import os
-from scipy.signal import blackmanharris
 import numpy as np
 import json
 import plotting
 import models.stft as STFT
 import warnings
-
+from preprocess.vectorisation_utils import create_json, InvalidPathError
 
 FOLDER_LIST = ['./data']
 OUTPUT_FOLDER = './stft/vectors'
@@ -23,36 +22,6 @@ window = 'hanning'
 
 w = window_dictionary.get(window, None)(M)
 
-class InvalidPathError(Exception): pass
-
-
-
-def load_npy(filepath):
-    if not os.path.exists(filepath):
-        raise InvalidPathError("{} does not exist!".format(filepath))
-    xtmag = np.load(filepath + '/mag.npy')
-    xtphase = np.load(filepath + '/phase.npy')
-    return xtmag, xtphase
-
-def load_from_dir_root(rootdir):
-    if not os.path.exists(rootdir):
-        raise InvalidPathError("{} does not exist!".format(rootdir))
-    if not os.path.exists(rootdir + '/stft_settings.json'):
-        raise Exception("stft_settings.json file not found. Maybe the data hasn't been vectorised yet.")
-    with open(rootdir + '/stft_settings.json') as json_file:
-        json_vector_settings_dict = json.load(json_file)
-    loaded_data = []
-    for root, dir, filenames in os.walk(rootdir):
-        if all(x in filenames for x in ['mag.npy', 'phase.npy']):
-            print('Loading files from {}...'.format(root), end='')
-            mX, pX = load_npy(root)
-            print('done')
-            loaded_data.append([mX, pX])
-    return loaded_data, json_vector_settings_dict
-
-def create_json(settings_file, json_dict):
-    with open(settings_file, 'w') as json_file:
-        json.dump(json_dict, json_file)
 
 def main():
     if not os.path.exists(OUTPUT_FOLDER):
