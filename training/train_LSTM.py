@@ -100,6 +100,11 @@ def main(args):
         if not os.path.exists(best_model_folder):
             os.makedirs(best_model_folder)
 
+        with open(model_folder + 'network_settings.json', mode='w') as settings_file:
+            json.dump(json_settings, settings_file)
+        with open(best_model_folder + 'network_settings.json', mode='w') as settings_file:
+            json.dump(json_settings, settings_file)
+
         while step < args.num_training_steps:
             start_time = time.time()
 
