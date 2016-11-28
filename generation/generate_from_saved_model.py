@@ -26,16 +26,16 @@ def main(args):
         args.model_folder = args.model_folder[:-1]
 
     if os.path.isfile(args.model_folder):
-        enclosing_model_folder = os.path.join(*args.model_folder.split(sep='/')[:-1])
+        model_folder = os.path.join(*args.model_folder.split(sep='/')[:-1])
     else:
-        enclosing_model_folder = args.model_folder
+        model_folder = args.model_folder
 
-    if enclosing_model_folder.split(sep='/')[-1] == 'best_model':
-        model_name = enclosing_model_folder.split(sep='/')[-2]
-    else:
-        model_name = enclosing_model_folder.split(sep='/')[-1]
+    # if enclosing_model_folder.split(sep='/')[-1] == 'best_model':
+    #     model_name = enclosing_model_folder.split(sep='/')[-2]
+    # else:
+    model_name = model_folder.split(sep='/')[-1]
 
-    with open(enclosing_model_folder + settings_json_string, 'r') as f:
+    with open(model_folder + settings_json_string, 'r') as f:
         network_settings = json.load(f)
 
     analysis_type = network_settings['analysis_type']
@@ -71,7 +71,7 @@ def main(args):
         saver = tf.train.Saver()
 
         # saver.restore(sess, './training/saved_models/2016-11-25T08-54-35/model-20')
-        load_saved_model_to_resume_training(saver, sess, enclosing_model_folder)
+        load_saved_model_to_resume_training(saver, sess, model_folder)
 
         outputs_list = []
 

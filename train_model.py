@@ -15,6 +15,7 @@ DISPLAY_STEP = 10
 SAVE_EVERY = 500
 CHECKPOINT_EVERY = 500
 MAX_PATIENCE = 500
+PLATEAU_TOL = (5000, 0.0001)  # Parameters for detecting plateau. (n_iterations, minimum_decrease_in_cost)
 
 N_HIDDEN = [1000] # hidden layer num of features in LSTM
 
@@ -61,6 +62,8 @@ def get_arguments():
                         help='How often to save the model.')
     parser.add_argument('--max_patience', type=int, default=MAX_PATIENCE,
                         help='Maximum number of iterations for patience.')
+    parser.add_argument('--plateau_tol', type=float, nargs='+',
+                        help='Plateau tolerance. Number of iterations and minimum cost decrease.')
     # parser.add_argument('--wavenet_params', type=str, default=WAVENET_PARAMS,
     #                     help='JSON file with the network parameters.')
     # parser.add_argument('--sample_size', type=int, default=SAMPLE_SIZE,
@@ -90,6 +93,9 @@ if __name__ == '__main__':
 
     if args.model_folder is None:
         args.model_folder = MODEL_FOLDER + '/' + STARTED_DATESTRING
+
+    args.plateau_tol[0] = int(args.plateau_tol[0])
+    args.plateau_tol = tuple(args.plateau_tol)
 
     if not os.path.exists(VECTOR_FOLDER):
         raise Exception('{} not found'.format(VECTOR_FOLDER))

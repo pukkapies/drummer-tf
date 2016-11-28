@@ -90,23 +90,25 @@ def main(args):
         if step == None:  # Couldn't find a checkpoint to restore from
             step = 0
 
-        if model_folder.split(sep='/')[-1] == 'best_model':
-            best_model_folder = model_folder
-            model_folder = os.path.join(*(model_folder.split(sep='/')[:-1]))
-            print("Using best model folder. best_model_folder = {}, model_folder = {}".format(best_model_folder, model_folder))
-        else:
-            best_model_folder = model_folder + 'best_model/'
-
-        if not os.path.exists(best_model_folder):
-            os.makedirs(best_model_folder)
+        # if model_folder.split(sep='/')[-1] == 'best_model':
+        #     # best_model_folder = model_folder
+        #     model_folder = os.path.join(*(model_folder.split(sep='/')[:-1]))
+        #     print("Using best model folder. best_model_folder = {}, model_folder = {}".format(best_model_folder, model_folder))
+        # else:
+        #     best_model_folder = model_folder + 'best_model/'
+        #
+        # if not os.path.exists(best_model_folder):
+        #     os.makedirs(best_model_folder)
 
         with open(model_folder + 'network_settings.json', mode='w') as settings_file:
             json.dump(json_settings, settings_file)
-        with open(best_model_folder + 'network_settings.json', mode='w') as settings_file:
-            json.dump(json_settings, settings_file)
+        # with open(best_model_folder + 'network_settings.json', mode='w') as settings_file:
+        #     json.dump(json_settings, settings_file)
 
         while step < args.num_training_steps:
             start_time = time.time()
+
+            last_saved_at_step = 0
 
             summary, _ = sess.run([summaries, optimize], feed_dict=feed_dict)
             writer.add_summary(summary, step)
@@ -115,7 +117,7 @@ def main(args):
             loss = sess.run(cost, feed_dict=feed_dict)
 
             # Check patience
-            patience_reached, new_best_cost = patience.update(loss)
+            patience_reached, new_best_cost, plateau_reached = patience.update(loss)
             print('Iteration {}, best_cost = {}'.format(patience.iterations, new_best_cost))
 
             if patience_reached:
@@ -130,23 +132,25 @@ def main(args):
                     print("Patience reached, new learning rate = {}".format(args.learning_rates[patience.learning_rates_index]))
                     feed_dict[lr_placeholder] = args.learning_rates[patience.learning_rates_index]
 
-            if new_best_cost and ((patience.learning_rates_index + 1 == len(args.learning_rates)) or step >= 3000):
+            if new_best_cost and step - last_saved_at_step >= args.save_every:
                 # Save the model for a new best cost and delete the old saved model
                 # print('New best cost achieved, saving the model... ', end='')
-                for file in os.listdir(best_model_folder):
-                    if 'best_cost_model' in file:
-                        os.remove(best_model_folder + file)
-                saver.save(sess, best_model_folder + 'best_cost_model', global_step=step)
+                # for file in os.listdir(best_model_folder):
+                #     if 'best_cost_model' in file:
+                #         os.remove(best_model_folder + file)
+                # saver.save(sess, best_model_folder + 'best_cost_model', global_step=step)
+                saver.save(sess, model_folder + 'model', global_step=step)
+                last_saved_at_step = step
                 # print('done.')
 
             if step % args.display_step == 0:
                 print("Iter " + str(step) + ", Minibatch Loss= " + \
                       "{:.6f}, patience = {}, time for minibatch: {}".format(loss, patience.iterations,
                                                                              time.time() - start_time))
-            if step % args.save_every == 0:
-                print('Saving the model... ', end='')
-                saver.save(sess, model_folder + 'model', global_step=step)
-                print('done.')
+            # if step % args.save_every == 0:
+            #     print('Saving the model... ', end='')
+            #     saver.save(sess, model_folder + 'model', global_step=step)
+            #     print('done.')
             if step % 1000 == 0:
                 print('evaluating model... predicted followed by ground truth:')
                 print(sess.run([pred, y], feed_dict=feed_dict))
@@ -161,6 +165,6 @@ def main(args):
         # json_settings['git_commit'] = git_label
         with open(model_folder + 'network_settings.json', mode='w') as settings_file:
             json.dump(json_settings, settings_file)
-        with open(best_model_folder + 'network_settings.json', mode='w') as settings_file:
-            json.dump(json_settings, settings_file)
+        # with open(best_model_folder + 'network_settings.json', mode='w') as settings_file:
+        #     json.dump(json_settings, settings_file)
 
