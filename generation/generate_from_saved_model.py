@@ -9,8 +9,8 @@ import soundfile
 from nn_models.rnn_models import SimpleLSTM
 from datetime import datetime
 from utils.utils import load_saved_model_to_resume_training
-from generation.generation_utils import SineModelOutputProcessing, SineModelOutputProcessingWithActiveTracking
-from generation.generation_utils import STFTModelOutputProcessing
+from utils.generation_utils import SineModelOutputProcessing, SineModelOutputProcessingWithActiveTracking
+from utils.generation_utils import STFTModelOutputProcessing
 
 STARTED_DATESTRING = "{0:%Y-%m-%dT%H-%M-%S}".format(datetime.now())
 

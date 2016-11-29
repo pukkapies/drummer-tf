@@ -7,7 +7,7 @@ import json
 import plotting
 import models.stft as STFT
 import warnings
-from preprocess.vectorisation_utils import create_json, InvalidPathError
+from utils.vectorisation_utils import create_json, InvalidPathError
 
 FOLDER_LIST = ['./data']
 OUTPUT_FOLDER = './stft/vectors'
