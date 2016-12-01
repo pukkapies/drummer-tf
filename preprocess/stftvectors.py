@@ -57,8 +57,6 @@ def main():
             plotting.spectogram_plot(mX, pX, M, N, H, sr, show=False, filepath=PLOT_FOLDER + '/{}'.format(audio_file[:-4]))
 
             # Process the frequencies, magnitudes and phases to be normalised in the range [0,1]
-            mX = mX / freq_range[1]
-
             #TODO: we might want to calculate this across all of the training data instead of file by file
             #TODO: This will need modifying in the json file as well
             min_mX = np.min(mX)

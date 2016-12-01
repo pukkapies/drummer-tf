@@ -4,13 +4,17 @@ import json
 import os
 from models.utilFunctions import nextbiggestpower2, window_dictionary
 from models.sineModel import sineModelSynth
-from models.stft import stftSynth
+from models.stft import stftSynth, stftAnal
 import soundfile
 from nn_models.rnn_models import SimpleLSTM
 from datetime import datetime
 from utils.utils import load_saved_model_to_resume_training
 from utils.generation_utils import SineModelOutputProcessing, SineModelOutputProcessingWithActiveTracking
 from utils.generation_utils import STFTModelOutputProcessing
+from utils.vectorisation_utils import load_from_dir_root
+from training.setup.setup_data import setup_training_data
+
+from plotting import spectogram_plot
 
 STARTED_DATESTRING = "{0:%Y-%m-%dT%H-%M-%S}".format(datetime.now())
 
@@ -92,8 +96,55 @@ def main(args):
         final_outputs = tf.pack(final_outputs)  # Make one tensor of rank 2
         print(final_outputs.get_shape())
         final_outputs = tf.transpose(final_outputs,
-                                     [1, 0, 2])  # final_outputs has shape (batch_size, n_frames, n_hidden)
+                                     [1, 0, 2])  # final_outputs has shape (batch_size, n_frames, n_outputs)
         print('after packing and transposing, final_outputs shape: ', final_outputs.get_shape())
+
+        ####################
+        # Compare to ground truth (debugging)
+        if args.vector_folder is None:
+            print("No vector folder was provided, cannot calculate cost for debugging.")
+        else:
+            loaded, json_vector_settings, analysis_type = load_from_dir_root(args.vector_folder)
+            _, data_dict = setup_training_data(loaded, 1)  # batch_size = 1
+            ground_truth = data_dict['output_data']  # (n_frames, batch_size, n_outputs)
+            ground_truth = np.transpose(ground_truth, [1, 0, 2])
+            print('Network generation: {}'.format(final_outputs.eval()))
+            print('Data: {}'.format(ground_truth))
+            print(ground_truth.shape)
+            print(final_outputs.eval().shape)
+            assert ground_truth.shape == final_outputs.eval().shape
+            print('Squared error achieved by network: {}'.format(np.sum((ground_truth - final_outputs.eval())**2)
+                                                                 / ground_truth.size))
+            # mX = final_outputs.eval()[0,:,:257]
+            # pX = final_outputs.eval()[0,:,257:]
+            #
+            # np.save('./mX_model', mX)
+            # np.save('./pX_model', pX)
+            #
+            # asdfasdf
+            # phase_range = network_settings['stft_settings']['phase_range']
+            # mag_range = network_settings['stft_settings']['mag_range']
+            #
+            # # Unnormalise
+            # mX = mag_range[0] + (mX * (mag_range[1] - mag_range[0]))
+            # mX *= sr / 2  # Undo weird rescaling
+            # pX = phase_range[0] + (pX * (phase_range[1] - phase_range[0]))
+            #
+            # print(mX.shape)  # (num_frames, num_freq_bins)
+            # # mX = np.transpose(mX)
+            # # pX = np.transpose(pX)
+            # spectogram_plot(mX, pX, M, N, H, sr, fig_number=None, filepath=None, show=True)
+            #
+            # reconst = stftSynth(mX, pX, M, H)
+            # print(np.max(reconst), np.min(reconst))
+            #
+            #
+            # # soundfile.write('./test_reconst.wav', reconst, sr, format='wav')
+            # mX2, pX2 = stftAnal(reconst, w, N, H)
+            # print(mX2.shape, pX2.shape)
+            # spectogram_plot(mX2, pX2, M, N, H, sr, fig_number=None, filepath=None, show=True)
+            # asdfasdfasd
+
 
         ####################
         # For testing - just batch size = 1
@@ -110,7 +161,7 @@ def main(args):
     elif analysis_type == 'stft':
         process_output = STFTModelOutputProcessing(result, network_settings)
         xtmag, xtphase = process_output.convert_network_output_to_analysis_model_input()
-        reconstruction = stftSynth(xtmag, xtphase, analysis_settings['M'], H)
+        reconstruction = stftSynth(xtmag, xtphase, M, H)
     else:
         raise Exception('analysis_type not recognised!')
 
@@ -121,7 +172,7 @@ def main(args):
                filepath='./generation/plots/{}-(generated_{})/'.format(model_name, STARTED_DATESTRING))
 
     soundfile.write('./generation/wav_output/{}-(generated_{}).wav'.format(model_name, STARTED_DATESTRING),
-                    reconstruction, analysis_settings['sample_rate'], format='wav')
+                    reconstruction, sr, format='wav')
     #
     # np.save('./xtfreq', xtfreq)
     # np.save('./xtmag', xtmag)

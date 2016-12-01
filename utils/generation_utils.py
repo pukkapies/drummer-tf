@@ -90,8 +90,8 @@ class STFTModelOutputProcessing(NetworkOutputProcessing):
 
         assert self.xtmag.shape == self.xtphase.shape
 
-        phase_range = self.settings['sinemodel_settings']['phase_range']
-        mag_range = self.settings['sinemodel_settings']['mag_range']
+        phase_range = self.settings['stft_settings']['phase_range']
+        mag_range = self.settings['stft_settings']['mag_range']
 
         # Unnormalise
         self.xtphase = phase_range[0] + (self.xtphase * (phase_range[1] - phase_range[0]))

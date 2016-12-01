@@ -5,7 +5,7 @@ import numpy as np
 
 class SimpleLSTM(object):
 
-    def __init__(self, input_placeholder, state_placeholder, n_hidden, n_outputs):
+    def __init__(self, input_placeholder, state_placeholder, n_hidden, n_outputs, activation_fn=tf.sigmoid):
         """
         Sets up the LSTM model with an additional output filter to shape to size n_outputs
         :param input_placeholder: Placeholder tensor of shape (n_steps, batch_size, n_inputs)
@@ -21,6 +21,7 @@ class SimpleLSTM(object):
         self.weights_out = []
         self.biases_out = []
         self.cell = []
+        self.activation_fn = activation_fn
         print('n_outputs:', n_outputs)
         print('n_hidden:', n_hidden)
 
@@ -82,7 +83,7 @@ class SimpleLSTM(object):
                 final_states.append(states)
 
                 # Linear activation, using rnn inner loop
-                final_output = [tf.sigmoid(tf.matmul(output, self.weights_out[i]) + self.biases_out[i]) for output in outputs]
+                final_output = [self.activation_fn(tf.matmul(output, self.weights_out[i]) + self.biases_out[i]) for output in outputs]
                 print('each final_outputs shape: ', final_output[0].get_shape())
                 print('length of final_outputs: ', len(final_output))
                 x = final_output

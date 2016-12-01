@@ -32,6 +32,8 @@ def get_arguments():
         type=str,
         default=WAV_OUT_PATH,
         help='Path to output wav file')
+    parser.add_argument('--vector_folder', type=str, default=None,
+                        help='The directory containing the vectorised data.')
     # parser.add_argument(
     #     '--wav_seed',
     #     type=str,

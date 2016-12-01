@@ -107,7 +107,7 @@ class RejectionSamplingFailure(Exception): pass
 
 def repeat_until_not_none(num_tries, maybe_get_value, get_msg):
     """ :: nat, (void -> maybe(A)), (void -> str) -> A """
-    for _ in xrange(num_tries):
+    for _ in range(num_tries):
         result = maybe_get_value()
         if result is not None: return result
     raise RejectionSamplingFailure("Rejection sampling failed after %d tries (%s)" % (num_tries, get_msg()))

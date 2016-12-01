@@ -6,9 +6,9 @@ import sys
 import numpy as np
 import tensorflow as tf
 
-from layers import Dense
-import plot
-from utils import composeAll, print_
+import utils.vaeplot as vaeplot
+from utils.functionaltools import composeAll
+from utils.utils import print_
 
 
 class VAE():
@@ -27,7 +27,7 @@ class VAE():
     }
     RESTORE_KEY = "to_restore"
 
-    def __init__(self, architecture=[], d_hyperparams={}, meta_graph=None,
+    def __init__(self, architecture=[], d_hyperparams={},
                  save_graph_def=True, log_dir="./log"):
         """(Re)build a symmetric VAE model with given:
 
@@ -41,28 +41,15 @@ class VAE():
         self.__dict__.update(VAE.DEFAULTS, **d_hyperparams)
         self.sesh = tf.Session()
 
-        if not meta_graph: # new model
-            self.datetime = datetime.now().strftime(r"%y%m%d_%H%M")
-            assert len(self.architecture) > 2, \
-                "Architecture must have more layers! (input, 1+ hidden, latent)"
+        self.datetime = datetime.now().strftime(r"%y%m%d_%H%M")
+        assert len(self.architecture) > 2, \
+            "Architecture must have more layers! (input, 1+ hidden, latent)"
 
-            # build graph
-            handles = self._buildGraph()
-            for handle in handles:
-                tf.add_to_collection(VAE.RESTORE_KEY, handle)
-            self.sesh.run(tf.initialize_all_variables())
-
-        else: # restore saved model
-            model_datetime, model_name = os.path.basename(meta_graph).split("_vae_")
-            self.datetime = "{}_reloaded".format(model_datetime)
-            *model_architecture, _ = re.split("_|-", model_name)
-            self.architecture = [int(n) for n in model_architecture]
-
-            # rebuild graph
-            meta_graph = os.path.abspath(meta_graph)
-            tf.train.import_meta_graph(meta_graph + ".meta").restore(
-                self.sesh, meta_graph)
-            handles = self.sesh.graph.get_collection(VAE.RESTORE_KEY)
+        # build graph
+        handles = self._buildGraph()
+        for handle in handles:
+            tf.add_to_collection(VAE.RESTORE_KEY, handle)
+        self.sesh.run(tf.initialize_all_variables())
 
         # unpack handles for tensor ops to feed or fetch
         (self.x_in, self.dropout_, self.z_mean, self.z_log_sigma,
@@ -235,13 +222,13 @@ class VAE():
 
                 if plot_latent_over_time:
                     while int(round(BASE**pow_)) == i:
-                        plot.exploreLatent(self, nx=30, ny=30, ppf=True, outdir=plots_outdir,
+                        vaeplot.exploreLatent(self, nx=30, ny=30, ppf=True, outdir=plots_outdir,
                                            name="explore_ppf30_{}".format(pow_))
 
                         names = ("train", "validation", "test")
                         datasets = (X.train, X.validation, X.test)
                         for name, dataset in zip(names, datasets):
-                            plot.plotInLatent(self, dataset.images, dataset.labels, range_=
+                            vaeplot.plotInLatent(self, dataset.images, dataset.labels, range_=
                                               (-6, 6), title=name, outdir=plots_outdir,
                                               name="{}_{}".format(name, pow_))
 
@@ -253,7 +240,7 @@ class VAE():
 
                 if i%2000 == 0 and verbose:# and i >= 10000:
                     # visualize `n` examples of current minibatch inputs + reconstructions
-                    plot.plotSubset(self, x, x_reconstructed, n=10, name="train",
+                    vaeplot.plotSubset(self, x, x_reconstructed, n=10, name="train",
                                     outdir=plots_outdir)
 
                     if cross_validate:
@@ -263,7 +250,7 @@ class VAE():
                         x_reconstructed, cost = self.sesh.run(fetches, feed_dict)
 
                         print("round {} --> CV cost: ".format(i), cost)
-                        plot.plotSubset(self, x, x_reconstructed, n=10, name="cv",
+                        vaeplot.plotSubset(self, x, x_reconstructed, n=10, name="cv",
                                         outdir=plots_outdir)
 
                 if i >= max_iter or X.train.epochs_completed >= max_epochs:
