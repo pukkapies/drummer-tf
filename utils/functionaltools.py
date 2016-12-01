@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 @author: Samer
 """
@@ -40,6 +39,15 @@ def if_none_else(fallback, value):
 
 def member(X):    return lambda x: x in X
 def not_member(X): return lambda x: x not in X
+
+def composeAll(*args):
+    """Util for multiple function composition
+
+    i.e. composed = composeAll([f, g, h])
+         composed(x) # == f(g(h(x)))
+    """
+    # adapted from https://docs.python.org/3.1/howto/functional.html
+    return partial(reduce, compose)(*args)
 
 def compose2(f, g): return lambda x: f(g(x))
 def compose(*args): return reduce(compose2, args)
