@@ -32,8 +32,8 @@ class Patience(object):
                 self.learning_rates_index += 1
                 self.iterations = 0
                 return True, False, False
-            elif self.plateau.detect_plateau(self.global_step, self.best_cost_step, cost, self.best_cost):
-                return False, False, True
+            # elif self.plateau.detect_plateau(self.global_step, self.best_cost_step, cost, self.best_cost):
+            #     return False, False, True
             else:   # Nothing happened
                 return False, False, False
 
@@ -47,9 +47,10 @@ class PlateauDetector(object):
     """
 
     def __init__(self, args, step):
-        self.num_plateau_iterations = args.plateau_tol[0]
-        self.minimum_cost_decrease = args.plateau_tol[1]
-        self.reference_step = step
+        # self.num_plateau_iterations = args.plateau_tol[0]
+        # self.minimum_cost_decrease = args.plateau_tol[1]
+        # self.reference_step = step
+        pass
 
     def detect_plateau(self, global_step, best_cost_step, current_cost, best_cost):
         if (global_step - best_cost_step >= self.num_plateau_iterations) \

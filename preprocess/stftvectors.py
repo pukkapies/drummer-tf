@@ -10,7 +10,7 @@ import warnings
 from utils.vectorisation_utils import create_json, InvalidPathError
 
 FOLDER_LIST = ['./data']
-OUTPUT_FOLDER = './stft/vectors'
+OUTPUT_FOLDER = './stft/vectors/dataset_d_4_p_60'
 PLOT_FOLDER = './stft/plots'
 SAMPLE_RATE = 44100 # Assume all files to be loaded have the same sample rate, or raise an error
 
@@ -62,10 +62,20 @@ def main():
             min_mX = np.min(mX)
             max_mX = np.max(mX)
 
-            mX = (mX - min_mX) / (max_mX - min_mX)
-            pX = np.mod(pX, 2 * np.pi) / (2 * np.pi)  # Between 0 and 1
-
             json_dict['mag_range'] = [min_mX, max_mX]
+
+            mX_norm_range = [0.1, 0.9]
+            pX_norm_range = [0.1, 0.9]
+
+            json_dict['mag_normalised_range'] = mX_norm_range
+            json_dict['phase_normalised_range'] = pX_norm_range
+
+            mX = (mX - min_mX) / (max_mX - min_mX) # Between 0 and 1
+            mX = (mX * (mX_norm_range[1] - mX_norm_range[0])) + mX_norm_range[0]
+            pX = np.mod(pX, 2 * np.pi) / (2 * np.pi)  # Between 0 and 1
+            pX = (pX * (pX_norm_range[1] - pX_norm_range[0])) + pX_norm_range[0]
+
+
 
             # Check the data has been normalised correctly
             assert (mX <= 1).all() and (mX >= 0).all()

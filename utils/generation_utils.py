@@ -4,6 +4,25 @@ import os
 from utils.sampling import binary_sample
 
 
+def unnormalise_range(array, normalised_range, unnormalised_range, constrain_range=True):
+    """
+    Takes an array which is supposed to have values that lie within normalised_range, and scales
+    the elements so that they lie within unnormalised_range. If constrain_range is True, then any
+    values that lie outside the range are snapped to the boundary of the range.
+    :param array: np.array, usually network output
+    :param normalised_range: List [float, float]. The supposed range of values in array
+    :param unnormalised_range: List [float, float]. The range of values we want array to have after rescaling
+    :param constrain_range: Bool. Whether or not to fix outlying values to the boundary of the range
+    :return: rescaled array
+    """
+    rescaled_array = (array - normalised_range[0]) * (normalised_range[1] - normalised_range[0])  # between 0 and 1
+    if constrain_range:
+        rescaled_array[rescaled_array <= 0] = 0.0
+        rescaled_array[rescaled_array >= 1] = 1.0
+    rescaled_array = unnormalised_range[0] + (rescaled_array * (unnormalised_range[1] - unnormalised_range[0]))
+    return rescaled_array
+
+
 class NetworkOutputProcessing(object):
     def __init__(self, network_output, network_settings):
         self.result = network_output
@@ -50,10 +69,14 @@ class SineModelOutputProcessing(NetworkOutputProcessing):
         freq_range = self.settings['sine_model_settings']['freq_range']
         mag_range = self.settings['sine_model_settings']['mag_range']
 
+        mag_normalised_range = self.settings['sine_model_settings']['mag_normalised_range']
+        phase_normalised_range = self.settings['sine_model_settings']['phase_normalised_range']
+        freq_normalised_range = self.settings['sine_model_settings']['freq_normalised_range']
+
         # Unnormalise
-        self.xtfreq = freq_range[0] + (self.xtfreq * (freq_range[1] - freq_range[0]))
-        self.xtphase = phase_range[0] + (self.xtphase * (phase_range[1] - phase_range[0]))
-        self.xtmag = mag_range[0] + (self.xtmag * (mag_range[1] - mag_range[0]))
+        self.xtfreq = unnormalise_range(self.xtfreq, freq_normalised_range, freq_range)
+        self.xtphase = unnormalise_range(self.xtphase, phase_normalised_range, phase_range)
+        self.xtmag = unnormalise_range(self.xtmag, mag_normalised_range, mag_range)
 
         return self.xtfreq, self.xtmag, self.xtphase
 
@@ -93,8 +116,11 @@ class STFTModelOutputProcessing(NetworkOutputProcessing):
         phase_range = self.settings['stft_settings']['phase_range']
         mag_range = self.settings['stft_settings']['mag_range']
 
+        mag_normalised_range = self.settings['sine_model_settings']['mag_normalised_range']
+        phase_normalised_range = self.settings['sine_model_settings']['phase_normalised_range']
+
         # Unnormalise
-        self.xtphase = phase_range[0] + (self.xtphase * (phase_range[1] - phase_range[0]))
-        self.xtmag = mag_range[0] + (self.xtmag * (mag_range[1] - mag_range[0]))
+        self.xtphase = unnormalise_range(self.xtphase, phase_normalised_range, phase_range)
+        self.xtmag = unnormalise_range(self.xtmag, mag_normalised_range, mag_range)
 
         return self.xtmag, self.xtphase

@@ -44,7 +44,7 @@ def main(args):
     feed_dict = {y: data_dict['output_data'], x: data_dict['input_data']}
     lr_placeholder = tf.placeholder(tf.float32) # Learning rate
 
-    lstm = SimpleLSTM(x, initial_states, n_hidden, n_outputs)
+    lstm = SimpleLSTM(x, initial_states, n_hidden, n_outputs, activation_fn=tf.sigmoid)
     pred = lstm.prediction
 
     # pred = setup_non_self_updating_rnn(x, n_hidden[0], n_outputs)
