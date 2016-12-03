@@ -15,10 +15,10 @@ PLOT_FOLDER = './stft/plots'
 SAMPLE_RATE = 44100 # Assume all files to be loaded have the same sample rate, or raise an error
 
 # STFT parameters
-N = 512
+N = 1024
 M = 511
-H = 256
-window = 'hanning'
+H = 128
+window = 'blackmanharris'
 
 w = window_dictionary.get(window, None)(M)
 

@@ -96,11 +96,8 @@ if __name__ == '__main__':
 
     if args.vector_folder is None:
         raise Exception('No vectors folder specified. (Use --vector_folder argument)')
-
-    # args.plateau_tol[0] = int(args.plateau_tol[0])
-    # args.plateau_tol = tuple(args.plateau_tol)
-
-    if not os.path.exists(VECTOR_FOLDER):
-        raise Exception('{} not found'.format(VECTOR_FOLDER))
+    else:
+        if not os.path.exists(args.vector_folder):
+            raise Exception('{} not found'.format(args.vector_folder))
 
     main(args)

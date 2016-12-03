@@ -116,8 +116,8 @@ class STFTModelOutputProcessing(NetworkOutputProcessing):
         phase_range = self.settings['stft_settings']['phase_range']
         mag_range = self.settings['stft_settings']['mag_range']
 
-        mag_normalised_range = self.settings['sine_model_settings']['mag_normalised_range']
-        phase_normalised_range = self.settings['sine_model_settings']['phase_normalised_range']
+        mag_normalised_range = self.settings['stft_settings']['mag_normalised_range']
+        phase_normalised_range = self.settings['stft_settings']['phase_normalised_range']
 
         # Unnormalise
         self.xtphase = unnormalise_range(self.xtphase, phase_normalised_range, phase_range)

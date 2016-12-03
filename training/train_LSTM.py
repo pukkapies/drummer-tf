@@ -90,25 +90,13 @@ def main(args):
         if step == None:  # Couldn't find a checkpoint to restore from
             step = 0
 
-        # if model_folder.split(sep='/')[-1] == 'best_model':
-        #     # best_model_folder = model_folder
-        #     model_folder = os.path.join(*(model_folder.split(sep='/')[:-1]))
-        #     print("Using best model folder. best_model_folder = {}, model_folder = {}".format(best_model_folder, model_folder))
-        # else:
-        #     best_model_folder = model_folder + 'best_model/'
-        #
-        # if not os.path.exists(best_model_folder):
-        #     os.makedirs(best_model_folder)
-
         with open(model_folder + 'network_settings.json', mode='w') as settings_file:
             json.dump(json_settings, settings_file)
-        # with open(best_model_folder + 'network_settings.json', mode='w') as settings_file:
-        #     json.dump(json_settings, settings_file)
+
+        last_saved_at_step = 0
 
         while step < args.num_training_steps:
             start_time = time.time()
-
-            last_saved_at_step = 0
 
             summary, _ = sess.run([summaries, optimize], feed_dict=feed_dict)
             writer.add_summary(summary, step)
@@ -132,16 +120,10 @@ def main(args):
                     print("Patience reached, new learning rate = {}".format(args.learning_rates[patience.learning_rates_index]))
                     feed_dict[lr_placeholder] = args.learning_rates[patience.learning_rates_index]
 
-            if new_best_cost and step - last_saved_at_step >= args.save_every:
-                # Save the model for a new best cost and delete the old saved model
-                # print('New best cost achieved, saving the model... ', end='')
-                # for file in os.listdir(best_model_folder):
-                #     if 'best_cost_model' in file:
-                #         os.remove(best_model_folder + file)
-                # saver.save(sess, best_model_folder + 'best_cost_model', global_step=step)
+            if new_best_cost and ((step - last_saved_at_step) >= args.save_every):
+                print('Entering save section, step = {}, last_saved_at_step = {}'.format(step, last_saved_at_step))
                 saver.save(sess, model_folder + 'model', global_step=step)
                 last_saved_at_step = step
-                # print('done.')
 
             if step % args.display_step == 0:
                 print("Iter " + str(step) + ", Minibatch Loss= " + \
