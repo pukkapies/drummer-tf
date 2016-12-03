@@ -4,7 +4,7 @@ import os
 from training.train_LSTM import main
 
 
-VECTOR_FOLDER = "./preprocess/sine_model/vectors/dataset_d_4_p_60"
+VECTOR_FOLDER = None
 
 # Training parameters
 LEARNING_RATE_LIST = [0.001, 0.0001, 0.00001]
@@ -94,8 +94,11 @@ if __name__ == '__main__':
     if args.model_folder is None:
         args.model_folder = MODEL_FOLDER + '/' + STARTED_DATESTRING
 
-    args.plateau_tol[0] = int(args.plateau_tol[0])
-    args.plateau_tol = tuple(args.plateau_tol)
+    if args.vector_folder is None:
+        raise Exception('No vectors folder specified. (Use --vector_folder argument)')
+
+    # args.plateau_tol[0] = int(args.plateau_tol[0])
+    # args.plateau_tol = tuple(args.plateau_tol)
 
     if not os.path.exists(VECTOR_FOLDER):
         raise Exception('{} not found'.format(VECTOR_FOLDER))
