@@ -1,3 +1,5 @@
+from __future__ import print_function, absolute_import
+
 import models.utilFunctions as UF
 from models.utilFunctions import nextbiggestpower2, window_dictionary
 import soundfile
@@ -15,10 +17,13 @@ PLOT_FOLDER = './stft/plots'
 SAMPLE_RATE = 44100 # Assume all files to be loaded have the same sample rate, or raise an error
 
 # STFT parameters
-N = 1024
+N = 512
 M = 511
 H = 128
-window = 'blackmanharris'
+window = 'hanning'
+
+mX_norm_range = [0.1, 0.9]
+pX_norm_range = [0.1, 0.9]
 
 w = window_dictionary.get(window, None)(M)
 
@@ -64,9 +69,6 @@ def main():
 
             json_dict['mag_range'] = [min_mX, max_mX]
 
-            mX_norm_range = [0.1, 0.9]
-            pX_norm_range = [0.1, 0.9]
-
             json_dict['mag_normalised_range'] = mX_norm_range
             json_dict['phase_normalised_range'] = pX_norm_range
 
@@ -75,11 +77,9 @@ def main():
             pX = np.mod(pX, 2 * np.pi) / (2 * np.pi)  # Between 0 and 1
             pX = (pX * (pX_norm_range[1] - pX_norm_range[0])) + pX_norm_range[0]
 
-
-
             # Check the data has been normalised correctly
-            assert (mX <= 1).all() and (mX >= 0).all()
-            assert (pX <= 1).all() and (pX >= 0).all()
+            assert (mX <= mX_norm_range[1]).all() and (mX >= mX_norm_range[0]).all()
+            assert (pX <= pX_norm_range[1]).all() and (pX >= pX_norm_range[0]).all()
 
             output_path = OUTPUT_FOLDER + '/{}/'.format(file_count)
             if not os.path.exists(output_path):

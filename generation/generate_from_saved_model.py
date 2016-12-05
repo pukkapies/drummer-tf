@@ -1,3 +1,5 @@
+from __future__ import print_function, absolute_import
+
 import tensorflow as tf
 import numpy as np
 import json
@@ -161,11 +163,17 @@ def main(args):
     elif analysis_type == 'stft':
         process_output = STFTModelOutputProcessing(result, network_settings)
         xtmag, xtphase = process_output.convert_network_output_to_analysis_model_input()
+        filepath = './generation/plots/{}-(generated_{})'.format(model_name, STARTED_DATESTRING)
+        if not os.path.exists(filepath): os.makedirs(filepath)
+        spectogram_plot(xtmag, xtphase, M, N, H, sr, show=False,
+                        filepath='./generation/plots/{}-(generated_{})/network_output_spectogram'.format(model_name, STARTED_DATESTRING))
         reconstruction = stftSynth(xtmag, xtphase, M, H)
     else:
         raise Exception('analysis_type not recognised!')
 
     print('model_name:', model_name)
+
+
 
     #TODO: extract more of these arguments in the class methods
     process_output.make_plots(reconstruction, w, M, N, H, sr,
@@ -175,5 +183,5 @@ def main(args):
                     reconstruction, sr, format='wav')
     #
     # np.save('./xtfreq', xtfreq)
-    # np.save('./xtmag', xtmag)
-    # np.save('./xtphase', xtphase)
+    np.save('./xtmag_bh', xtmag)
+    np.save('./xtphase_bh', xtphase)

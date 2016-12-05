@@ -1,3 +1,8 @@
+from __future__ import print_function, absolute_import
+import sys
+
+sys.path.insert(0,'.')
+
 import argparse
 from datetime import datetime
 import os

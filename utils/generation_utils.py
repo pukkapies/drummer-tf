@@ -1,5 +1,8 @@
+from __future__ import print_function, absolute_import
 import models.stft as STFT
 import plotting
+import numpy as np
+
 import os
 from utils.sampling import binary_sample
 
@@ -42,7 +45,7 @@ class NetworkOutputProcessing(object):
             if not os.path.exists(filepath):
                 os.makedirs(filepath)
         self.mX, self.pX = STFT.stftAnal(waveform, w, N, H)
-        plotting.spectogram_plot(self.mX, self.pX, M, N, H, sr, show=False, filepath=filepath + 'model_spectogram')
+        plotting.spectogram_plot(self.mX, self.pX, M, N, H, sr, show=False, filepath=filepath + 'model_generation_spectogram')
 
 
 class SineModelOutputProcessing(NetworkOutputProcessing):
@@ -119,7 +122,11 @@ class STFTModelOutputProcessing(NetworkOutputProcessing):
         mag_normalised_range = self.settings['stft_settings']['mag_normalised_range']
         phase_normalised_range = self.settings['stft_settings']['phase_normalised_range']
 
+        print('mag norm range: {}'.format(mag_normalised_range))
         # Unnormalise
+        print('mag max: {}'.format(np.max(self.xtmag)))
+        print('mag min: {}'.format(np.min(self.xtmag)))
+
         self.xtphase = unnormalise_range(self.xtphase, phase_normalised_range, phase_range)
         self.xtmag = unnormalise_range(self.xtmag, mag_normalised_range, mag_range)
 

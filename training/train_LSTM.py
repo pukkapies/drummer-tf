@@ -1,3 +1,5 @@
+from __future__ import print_function, absolute_import
+
 from utils.vectorisation_utils import load_from_dir_root
 import tensorflow as tf
 import json

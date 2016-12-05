@@ -1,3 +1,5 @@
+from __future__ import print_function, absolute_import
+
 import os
 import tensorflow as tf
 
@@ -48,8 +50,8 @@ def load_saved_model_to_resume_training(saver, sess, model, is_file=False):
             print(" No checkpoint found.")
             return None, model_folder
 
-def print_(var, name: str, first_n=5, summarize=5):
-    """Util for debugging, by printing values of tf.Variable `var` during training"""
-    # (tf.Tensor, str, int, int) -> tf.Tensor
-    return tf.Print(var, [var], "{}: ".format(name), first_n=first_n,
-                    summarize=summarize)
+# def print_(var, name: str, first_n=5, summarize=5):
+#     """Util for debugging, by printing values of tf.Variable `var` during training"""
+#     # (tf.Tensor, str, int, int) -> tf.Tensor
+#     return tf.Print(var, [var], "{}: ".format(name), first_n=first_n,
+#                     summarize=summarize)
