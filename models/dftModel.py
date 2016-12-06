@@ -83,7 +83,7 @@ def dftAnal(x, w, N):
 def dftSynth(mX, pX, M):
     """
     Synthesis of a signal using the discrete Fourier transform
-    mX: magnitude spectrum, pX: phase spectrum, M: window size
+    mX: magnitude spectrum (dB), pX: phase spectrum, M: window size
     returns y: output signal
     """
 
