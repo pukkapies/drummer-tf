@@ -12,13 +12,13 @@ import warnings
 from utils.vectorisation_utils import create_json, InvalidPathError
 
 FOLDER_LIST = ['./data']
-OUTPUT_FOLDER = './stft/vectors/dataset_d_4_p_60'
+OUTPUT_FOLDER = './stft/vectors/dataset_d_4_p_60_SHORT_TEST20'
 PLOT_FOLDER = './stft/plots'
 SAMPLE_RATE = 44100 # Assume all files to be loaded have the same sample rate, or raise an error
 
 # STFT parameters
 N = 512
-M = 511
+M = 512
 H = 128
 window = 'hanning'
 
@@ -31,6 +31,8 @@ w = window_dictionary.get(window, None)(M)
 def main():
     if not os.path.exists(OUTPUT_FOLDER):
         os.makedirs(OUTPUT_FOLDER)
+    if not os.path.exists(PLOT_FOLDER):
+        os.makedirs(PLOT_FOLDER)
 
     file_count = 0
     datalist = []
@@ -57,6 +59,10 @@ def main():
             json_dict['freq_range'] = freq_range
 
             mX, pX = STFT.stftAnal(file, w, N, H)
+
+            # For SHORT_TEST:
+            mX = mX[:20, :]
+            pX = pX[:20, :]
 
             # For plotting the spectrogram of the signal
             plotting.spectogram_plot(mX, pX, M, N, H, sr, show=False, filepath=PLOT_FOLDER + '/{}'.format(audio_file[:-4]))
