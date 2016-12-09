@@ -15,7 +15,7 @@ from utils.generation_utils import SineModelOutputProcessing, SineModelOutputPro
 from utils.generation_utils import STFTModelOutputProcessing
 from utils.vectorisation_utils import load_from_dir_root
 from training.setup.setup_data import setup_training_data
-
+import matplotlib.pyplot as plt
 from plotting import spectogram_plot
 
 STARTED_DATESTRING = "{0:%Y-%m-%dT%H-%M-%S}".format(datetime.now())
@@ -111,12 +111,39 @@ def main(args):
             ground_truth = data_dict['output_data']  # (n_frames, batch_size, n_outputs)
             ground_truth = np.transpose(ground_truth, [1, 0, 2])
             print('Network generation: {}'.format(final_outputs.eval()))
+            network_mag = final_outputs.eval()[0, :, :257]
+            # plt.figure()
+            # plt.subplot(3,1,1)
+            # plt.plot(network_mag[0, :])
+            # plt.subplot(3,1,2)
+            # plt.plot(network_mag[1, :])
+            # plt.subplot(3,1,3)
+            # plt.plot(network_mag[3, :])
+            # plt.show()
+
+            print(network_mag[1, 7], network_mag[1, 17], network_mag[1, 32])
+
+
+            ground_truth_mag = ground_truth[0, :, :257]
+            # plt.figure()
+            # plt.subplot(3, 1, 1)
+            # plt.plot(ground_truth_mag[0, :])
+            # plt.subplot(3, 1, 2)
+            # plt.plot(ground_truth_mag[1, :])
+            # plt.subplot(3, 1, 3)
+            # plt.plot(ground_truth_mag[2, :])
+            # plt.show()
+
+
             print('Data: {}'.format(ground_truth))
+            print('Network output min/max: {}, {}'.format(np.min(final_outputs.eval()), np.max(final_outputs.eval())))
+            print('Data min/max: {}, {}'.format(np.min(ground_truth), np.max(ground_truth)))
             print(ground_truth.shape)
             print(final_outputs.eval().shape)
             assert ground_truth.shape == final_outputs.eval().shape
             print('Squared error achieved by network: {}'.format(np.sum((ground_truth - final_outputs.eval())**2)
                                                                  / ground_truth.size))
+
             # mX = final_outputs.eval()[0,:,:257]
             # pX = final_outputs.eval()[0,:,257:]
             #
@@ -173,8 +200,6 @@ def main(args):
 
     print('model_name:', model_name)
 
-
-
     #TODO: extract more of these arguments in the class methods
     process_output.make_plots(reconstruction, w, M, N, H, sr,
                filepath='./generation/plots/{}-(generated_{})/'.format(model_name, STARTED_DATESTRING))
@@ -183,5 +208,9 @@ def main(args):
                     reconstruction, sr, format='wav')
     #
     # np.save('./xtfreq', xtfreq)
-    np.save('./xtmag_bh', xtmag)
-    np.save('./xtphase_bh', xtphase)
+    network_output_folder = './generation/network_output/{}/'.format(model_name)
+    if not os.path.exists(network_output_folder):
+        os.makedirs(network_output_folder)
+
+    np.save(network_output_folder + 'xtmag_model', xtmag)
+    np.save(network_output_folder + 'xtphase_model', xtphase)
