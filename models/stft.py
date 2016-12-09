@@ -77,7 +77,7 @@ def stftSynth(mY, pY, M, H):
     hM1 = int(math.floor((M + 1) / 2))  # half analysis window size by rounding
     hM2 = int(math.floor(M / 2))  # half analysis window size by floor
     nFrames = mY[:, 0].size  # number of frames
-    y = np.zeros(nFrames * H + hM1 + hM2)  # initialize output array
+    y = np.zeros((nFrames - 1) * H + hM1 + hM2)  # initialize output array - NB changed nFrames to (nFrames - 1)
     pin = hM1
     for i in range(nFrames):  # iterate over all frames
         y1 = DFT.dftSynth(mY[i, :], pY[i, :], M)  # compute idft
