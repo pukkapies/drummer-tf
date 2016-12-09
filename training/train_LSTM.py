@@ -9,6 +9,9 @@ from nn_models.rnn_models import SimpleLSTM
 from .setup.setup_data import setup_training_data
 from utils.training_utils import Patience
 from utils.utils import load_saved_model_to_resume_training
+from utils.vectorisation_utils import create_json
+import matplotlib.pyplot as plt
+from models.stft import stftSynth
 
 
 def main(args):
@@ -50,7 +53,7 @@ def main(args):
     pred = lstm.prediction
 
     # pred = setup_non_self_updating_rnn(x, n_hidden[0], n_outputs)
-    print('pred shape: ', pred.get_shape()) # (batch_size, n_steps, 4*max_sines)
+    print('pred shape: ', pred.get_shape()) # (batch_size, n_steps, n_outputs)
     print('y shape:', y.get_shape())
 
     print('y - pred shape:', (y-pred).get_shape())
@@ -127,6 +130,19 @@ def main(args):
                 saver.save(sess, model_folder + 'model', global_step=step)
                 last_saved_at_step = step
 
+            # if step % 10 == 0:
+            #     fig = plt.figure(1)
+            #     ax1 = plt.subplot(2, 1, 1)
+            #     ax2 = plt.subplot(2, 1, 2)
+            #     ax1.clear()
+            #     ax2.clear()
+            #     ax1.plot(sess.run(pred, feed_dict=feed_dict)[0, :, :n_outputs / 2])  # amplitudes
+            #     ax2.plot(stftSynth(sess.run(pred, feed_dict=feed_dict)[0, :, :n_outputs / 2],
+            #                        sess.run(pred, feed_dict=feed_dict)[0, :, n_outputs / 2:],
+            #                        json_vector_settings['M'], json_vector_settings['H']))
+            #     # fig.canvas.draw()
+
+
             if step % args.display_step == 0:
                 print("Iter " + str(step) + ", Minibatch Loss= " + \
                       "{:.6f}, patience = {}, time for minibatch: {}".format(loss, patience.iterations,
@@ -147,8 +163,9 @@ def main(args):
         # git_label = subprocess.check_output(["git", "describe"])
         json_settings['best_cost'] = float(patience.best_cost)
         # json_settings['git_commit'] = git_label
-        with open(model_folder + 'network_settings.json', mode='w') as settings_file:
-            json.dump(json_settings, settings_file)
+        create_json(model_folder + 'network_settings.json', json_settings)
+        # with open(model_folder + 'network_settings.json', mode='w') as settings_file:
+        #     json.dump(json_settings, settings_file)
         # with open(best_model_folder + 'network_settings.json', mode='w') as settings_file:
         #     json.dump(json_settings, settings_file)
 

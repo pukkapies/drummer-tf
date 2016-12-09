@@ -38,7 +38,6 @@ class SimpleLSTM(object):
                 self.biases_out.append(tf.Variable(tf.random_normal([n_outputs[i]])))
                 # The following doesn't yet create variables, so doesn't use the variable_scope
                 self.cell.append(rnn_cell.BasicLSTMCell(n_hidden[i], forget_bias=1.0))
-                print(self.cell[i])
 
         self.prediction, self.state = self.sample(input_placeholder, state_placeholder)
 
