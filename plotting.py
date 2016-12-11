@@ -3,6 +3,7 @@ import numpy as np
 import math
 from models.sineModel import extracttracks
 
+
 def spectogram_plot(mX, pX, M, N, H, sr, fig_number=None, filepath=None, show=True):
     """
     Plots the spectogram for STFT and saves the file under filepath.
@@ -17,6 +18,7 @@ def spectogram_plot(mX, pX, M, N, H, sr, fig_number=None, filepath=None, show=Tr
     :param show: Boolean, whether to show the plot.
     :return: None
     """
+    assert (N/2 + 1) == mX.shape[1] == pX.shape[1]
 
     if fig_number:
         fig = plt.figure(fig_number, figsize=(9.5, 6))
@@ -30,9 +32,10 @@ def spectogram_plot(mX, pX, M, N, H, sr, fig_number=None, filepath=None, show=Tr
 
     ax1 = fig.add_subplot(2, 1, 1)
     numFrames = int(mX[:,0].size)
-    frmTime = H * np.arange(numFrames) / float(sr) # Times in seconds corresponding to the centre of each window
-    binFreq = np.arange(N/2+1) * float(sr) / N # Frequencies of each FFT bin
-    plt.pcolormesh(frmTime, binFreq, np.transpose(mX))
+    frmTime = H * np.arange(numFrames) / float(sr)  # Times in seconds corresponding to the centre of each window
+    binFreq = np.arange(N/2+1) * float(sr) / N  # Frequencies of each FFT bin
+    # plt.pcolormesh(frmTime, binFreq, np.transpose(mX))
+    plt.pcolormesh(np.transpose(mX))
     plt.title('mX ({}), M={}, N={}, H={}'.format(filename, M, N, H))
     plt.autoscale(tight=True)
 
@@ -40,7 +43,8 @@ def spectogram_plot(mX, pX, M, N, H, sr, fig_number=None, filepath=None, show=Tr
     numFrames = int(pX[:,0].size)
     frmTime = H * np.arange(numFrames) / float(sr)
     binFreq = np.arange(N/2+1) * float(sr) / N
-    plt.pcolormesh(frmTime, binFreq, np.diff(np.transpose(pX), axis=0))
+    # plt.pcolormesh(frmTime, binFreq, np.diff(np.transpose(pX), axis=0))
+    plt.pcolormesh(np.transpose(pX))
     plt.title('pX difference ({}), M={}, N={}, H={}'.format(filename, M, N, H))
     plt.autoscale(tight=True)
 

@@ -179,6 +179,10 @@ def main(args):
         # For testing - just batch size = 1
         result = tf.squeeze(final_outputs, [0]).eval()
 
+    network_output_folder = './generation/network_output/{}/'.format(model_name)
+    if not os.path.exists(network_output_folder):
+        os.makedirs(network_output_folder)
+
     if analysis_type == 'sine_model':
         process_output = SineModelOutputProcessingWithActiveTracking(result, network_settings)
         xtfreq, xtmag, xtphase = process_output.convert_network_output_to_analysis_model_input()
@@ -190,10 +194,11 @@ def main(args):
     elif analysis_type == 'stft':
         process_output = STFTModelOutputProcessing(result, network_settings)
         xtmag, xtphase = process_output.convert_network_output_to_analysis_model_input()
-        filepath = './generation/plots/{}-(generated_{})'.format(model_name, STARTED_DATESTRING)
-        if not os.path.exists(filepath): os.makedirs(filepath)
-        spectogram_plot(xtmag, xtphase, M, N, H, sr, show=False,
-                        filepath='./generation/plots/{}-(generated_{})/network_output_spectogram'.format(model_name, STARTED_DATESTRING))
+        np.save(network_output_folder + 'xtmag_model', xtmag)
+        np.save(network_output_folder + 'xtphase_model', xtphase)
+        plot_filepath = './generation/plots/{}-(generated_{})'.format(model_name, STARTED_DATESTRING)
+        if not os.path.exists(plot_filepath): os.makedirs(plot_filepath)
+        spectogram_plot(xtmag, xtphase, M, N, H, sr, show=False, filepath=plot_filepath + '/network_output_spectogram')
         reconstruction = stftSynth(xtmag, xtphase, M, H)
     else:
         raise Exception('analysis_type not recognised!')
@@ -206,11 +211,5 @@ def main(args):
 
     soundfile.write('./generation/wav_output/{}-(generated_{}).wav'.format(model_name, STARTED_DATESTRING),
                     reconstruction, sr, format='wav')
-    #
-    # np.save('./xtfreq', xtfreq)
-    network_output_folder = './generation/network_output/{}/'.format(model_name)
-    if not os.path.exists(network_output_folder):
-        os.makedirs(network_output_folder)
 
-    np.save(network_output_folder + 'xtmag_model', xtmag)
-    np.save(network_output_folder + 'xtphase_model', xtphase)
+
