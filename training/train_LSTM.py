@@ -95,8 +95,7 @@ def main(args):
         if step == None:  # Couldn't find a checkpoint to restore from
             step = 0
 
-        with open(model_folder + 'network_settings.json', mode='w') as settings_file:
-            json.dump(json_settings, settings_file)
+        create_json(model_folder + 'network_settings.json', json_settings)
 
         last_saved_at_step = 0
 
@@ -129,6 +128,8 @@ def main(args):
                 print('Entering save section, step = {}, last_saved_at_step = {}'.format(step, last_saved_at_step))
                 saver.save(sess, model_folder + 'model', global_step=step)
                 last_saved_at_step = step
+                json_settings['best_cost'] = loss
+                create_json(model_folder + 'network_settings.json', json_settings)
 
             # if step % 10 == 0:
             #     fig = plt.figure(1)
