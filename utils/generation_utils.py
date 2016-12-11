@@ -2,6 +2,7 @@ from __future__ import print_function, absolute_import
 import models.stft as STFT
 import plotting
 import numpy as np
+import matplotlib.pyplot as plt
 
 import os
 from utils.sampling import binary_sample
@@ -18,10 +19,12 @@ def unnormalise_range(array, normalised_range, unnormalised_range, constrain_ran
     :param constrain_range: Bool. Whether or not to fix outlying values to the boundary of the range
     :return: rescaled array
     """
-    rescaled_array = (array - normalised_range[0]) * (normalised_range[1] - normalised_range[0])  # between 0 and 1
+    print('array min/max: ', [np.min(array), np.max(array)])
+    rescaled_array = (array - normalised_range[0]) / (normalised_range[1] - normalised_range[0])  # between 0 and 1
+    print('rescaled_array min/max: ', [np.min(rescaled_array), np.max(rescaled_array)])
     if constrain_range:
-        rescaled_array[rescaled_array <= 0] = 0.0
-        rescaled_array[rescaled_array >= 1] = 1.0
+        rescaled_array[rescaled_array < 0.0] = 0.0
+        rescaled_array[rescaled_array > 1.0] = 1.0
     rescaled_array = unnormalised_range[0] + (rescaled_array * (unnormalised_range[1] - unnormalised_range[0]))
     return rescaled_array
 
@@ -32,7 +35,6 @@ class NetworkOutputProcessing(object):
         self.settings = network_settings
         self.output_shape = network_output.shape
         self.check_network_output()
-        self.convert_network_output_to_analysis_model_input()
 
     def convert_network_output_to_analysis_model_input(self):
         raise NotImplementedError
@@ -46,6 +48,8 @@ class NetworkOutputProcessing(object):
                 os.makedirs(filepath)
         self.mX, self.pX = STFT.stftAnal(waveform, w, N, H)
         plotting.spectogram_plot(self.mX, self.pX, M, N, H, sr, show=False, filepath=filepath + 'model_generation_spectogram')
+
+
 
 
 class SineModelOutputProcessing(NetworkOutputProcessing):
@@ -111,10 +115,16 @@ class STFTModelOutputProcessing(NetworkOutputProcessing):
         assert self.result.shape[1] == 2 * self.n_freqs
 
     def convert_network_output_to_analysis_model_input(self):
+        print('<<<< CONVERTING NETWORK OUTPUT >>>>')
         self.xtmag = self.result[:, :self.n_freqs]
         self.xtphase = self.result[:, self.n_freqs : 2*self.n_freqs]
 
+        # plt.figure()
+        # plt.plot(self.xtmag[1, :])
+        # plt.show()
+
         assert self.xtmag.shape == self.xtphase.shape
+        assert self.xtmag.shape[1] + self.xtphase.shape[1] == self.result.shape[1]
 
         phase_range = self.settings['stft_settings']['phase_range']
         mag_range = self.settings['stft_settings']['mag_range']
@@ -127,7 +137,19 @@ class STFTModelOutputProcessing(NetworkOutputProcessing):
         print('mag max: {}'.format(np.max(self.xtmag)))
         print('mag min: {}'.format(np.min(self.xtmag)))
 
-        self.xtphase = unnormalise_range(self.xtphase, phase_normalised_range, phase_range)
-        self.xtmag = unnormalise_range(self.xtmag, mag_normalised_range, mag_range)
+        print('phase max: {}'.format(np.max(self.xtphase)))
+        print('phase min: {}'.format(np.min(self.xtphase)))
+
+        self.xtmag = unnormalise_range(self.xtmag, mag_normalised_range, mag_range, constrain_range=False)
+        self.xtphase = unnormalise_range(self.xtphase, phase_normalised_range, phase_range, constrain_range=False)
+
+        print("After un-normalising: ")
+        print('mag max: {}'.format(np.max(self.xtmag)))
+        print('mag min: {}'.format(np.min(self.xtmag)))
+
+        print('phase max: {}'.format(np.max(self.xtphase)))
+        print('phase min: {}'.format(np.min(self.xtphase)))
 
         return self.xtmag, self.xtphase
+
+
