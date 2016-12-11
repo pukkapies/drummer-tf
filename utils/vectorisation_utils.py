@@ -28,6 +28,7 @@ def load_from_dir_root(rootdir):
     :return: loaded_data list of lists, dict of vectorisation settings, analysis_type
     """
     analysis_type = rootdir.split(sep='/')[2]
+    assert analysis_type in ['stft', 'sine_model']
     assert analysis_type in filenames_list_dict.keys()
 
     filenames_list = filenames_list_dict[analysis_type]
