@@ -17,7 +17,7 @@ def load_npy(filepath, filenames_list):
         data.append(np.load(filepath + '/' + filenames_list[i]))
     return data
 
-def load_from_dir_root(rootdir):
+def load_from_dir_root(rootdir, analysis_type):
     """
     Loads all data saved in a given folder. Searches through all subfolders and finds every folder that contains
     the file names listed in 'filenames'. Returns them in the list 'loaded_data'. Also searches for the
@@ -27,8 +27,6 @@ def load_from_dir_root(rootdir):
     :param analysis_type: String, e.g. 'stft' or 'sine_model'
     :return: loaded_data list of lists, dict of vectorisation settings, analysis_type
     """
-    analysis_type = rootdir.split(sep='/')[2]
-    assert analysis_type in ['stft', 'sine_model']
     assert analysis_type in filenames_list_dict.keys()
 
     filenames_list = filenames_list_dict[analysis_type]
@@ -46,7 +44,7 @@ def load_from_dir_root(rootdir):
             print(data)
             print('done')
             loaded_data.append(data)
-    return loaded_data, json_vector_settings_dict, analysis_type
+    return loaded_data, json_vector_settings_dict
 
 def create_json(settings_file, json_dict):
     with open(settings_file, 'w') as json_file:

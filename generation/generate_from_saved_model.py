@@ -106,7 +106,7 @@ def main(args):
         if args.vector_folder is None:
             print("No vector folder was provided, cannot calculate cost for debugging.")
         else:
-            loaded, json_vector_settings, analysis_type = load_from_dir_root(args.vector_folder)
+            loaded, json_vector_settings = load_from_dir_root(args.vector_folder, analysis_type)
             _, data_dict = setup_training_data(loaded, 1)  # batch_size = 1
             ground_truth = data_dict['output_data']  # (n_frames, batch_size, n_outputs)
             ground_truth = np.transpose(ground_truth, [1, 0, 2])
