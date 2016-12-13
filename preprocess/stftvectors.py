@@ -12,7 +12,7 @@ import warnings
 from utils.vectorisation_utils import create_json, InvalidPathError
 
 FOLDER_LIST = ['./data']
-OUTPUT_FOLDER = './stft/vectors/dataset_d_4_p_60_SHORT_TEST20'
+OUTPUT_FOLDER = './stft/vectors/TTMI02X01'
 PLOT_FOLDER = './stft/plots'
 SAMPLE_RATE = 44100 # Assume all files to be loaded have the same sample rate, or raise an error
 
@@ -60,9 +60,9 @@ def main():
 
             mX, pX = STFT.stftAnal(file, w, N, H)
 
-            # For SHORT_TEST:
-            mX = mX[:20, :]
-            pX = pX[:20, :]
+            # # For SHORT_TEST:
+            # mX = mX[:20, :]
+            # pX = pX[:20, :]
 
             # For plotting the spectrogram of the signal
             plotting.spectogram_plot(mX, pX, M, N, H, sr, show=False, filepath=PLOT_FOLDER + '/{}'.format(audio_file[:-4]))
