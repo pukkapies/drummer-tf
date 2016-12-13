@@ -128,7 +128,7 @@ def main(args):
                 print('Entering save section, step = {}, last_saved_at_step = {}'.format(step, last_saved_at_step))
                 saver.save(sess, model_folder + 'model', global_step=step)
                 last_saved_at_step = step
-                json_settings['best_cost'] = loss
+                json_settings['best_cost'] = float(loss)
                 create_json(model_folder + 'network_settings.json', json_settings)
 
             # if step % 10 == 0:
