@@ -30,8 +30,8 @@ import os
 #     plt.pause(0.001)
 
 
-MODEL_NAME = 'stft_1500_M512_SHORT_TEST20'
-vector_folder = './preprocess/stft/vectors/dataset_d_4_p_60_SHORT_TEST20/0/'
+MODEL_NAME = 'stft_400_M512'
+vector_folder = './preprocess/stft/vectors/dataset_d_4_p_60/0/'
 
 mX = np.load(vector_folder + 'mag.npy')
 pX = np.load(vector_folder + 'phase.npy')
@@ -68,6 +68,10 @@ mag_range = analysis_settings['mag_range']
 phase_range = analysis_settings['phase_range']
 mag_normalised_range = analysis_settings['mag_normalised_range']
 phase_normalised_range = analysis_settings['phase_normalised_range']
+sr = analysis_settings['sample_rate']
+
+# spectogram_plot(mX_model, pX_model, M, N, H, sr, show=True)
+# asdfasdf
 
 
 # Unnormalise data
@@ -88,7 +92,7 @@ pX = unnormalise_range(pX, phase_normalised_range, phase_range)
 print('data mX min/max: ', [np.min(mX), np.max(mX)])
 print('model mX min/max: ', [np.min(mX_model), np.max(mX_model)])
 
-for i in range(10):
+for i in range(20):
 
     # if 100 % (i+1) != 0: continue
 
