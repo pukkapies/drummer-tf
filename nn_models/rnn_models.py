@@ -32,10 +32,14 @@ class SimpleLSTM(object):
             n_outputs = n_hidden[1:] + [n_outputs]
 
         for i in range(len(n_hidden)):
+            glorot_init_boundary = np.sqrt(6. / (n_hidden[i] + n_outputs[i]))
             with tf.variable_scope('LSTM_model/layer_{}'.format(i+1)):
-            # with tf.variable_scope('LSTM_model'):
-                self.weights_out.append(tf.Variable(tf.random_normal([n_hidden[i], n_outputs[i]])))
-                self.biases_out.append(tf.Variable(tf.random_normal([n_outputs[i]])))
+                self.weights_out.append(tf.Variable(tf.random_uniform([n_hidden[i], n_outputs[i]],
+                                                                      minval=-glorot_init_boundary,
+                                                                      maxval=glorot_init_boundary)))
+                self.biases_out.append(tf.Variable(tf.zeros([n_outputs[i]])))
+                # self.weights_out.append(tf.Variable(tf.random_normal([n_hidden[i], n_outputs[i]])))
+                # self.biases_out.append(tf.Variable(tf.random_normal([n_outputs[i]])))
                 # The following doesn't yet create variables, so doesn't use the variable_scope
                 self.cell.append(rnn_cell.BasicLSTMCell(n_hidden[i], forget_bias=1.0))
 
