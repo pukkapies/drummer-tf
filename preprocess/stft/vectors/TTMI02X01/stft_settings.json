@@ -1,0 +1,27 @@
+{
+    "H": 128,
+    "M": 512,
+    "N": 512,
+    "freq_range": [
+        0,
+        22050.0
+    ],
+    "mag_normalised_range": [
+        0.1,
+        0.9
+    ],
+    "mag_range": [
+        -164.13527615551476,
+        -9.818224333296708
+    ],
+    "phase_normalised_range": [
+        0.1,
+        0.9
+    ],
+    "phase_range": [
+        0,
+        6.283185307179586
+    ],
+    "sample_rate": 44100,
+    "w": "hanning"
+}
