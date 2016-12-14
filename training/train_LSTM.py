@@ -100,72 +100,85 @@ def main(args):
 
         last_saved_at_step = 0
 
-        while step < args.num_training_steps:
-            start_time = time.time()
+        try:
+            while step < args.num_training_steps:
+                start_time = time.time()
 
-            summary, _ = sess.run([summaries, optimize], feed_dict=feed_dict)
-            writer.add_summary(summary, step)
+                summary, _ = sess.run([summaries, optimize], feed_dict=feed_dict)
+                writer.add_summary(summary, step)
 
-            # Calculate batch loss
-            loss = sess.run(cost, feed_dict=feed_dict)
+                # Calculate batch loss
+                loss = sess.run(cost, feed_dict=feed_dict)
 
-            # Check patience
-            patience_reached, new_best_cost, plateau_reached = patience.update(loss)
-            print('Iteration {}, best_cost = {}'.format(patience.iterations, new_best_cost))
+                # Check patience
+                patience_reached, new_best_cost, plateau_reached = patience.update(loss)
+                print('Iteration {}, best_cost = {}'.format(patience.iterations, new_best_cost))
 
-            if patience_reached:
-                print('patience reached')
-                if patience.learning_rates_index + 1 > len(args.learning_rates): #Ran out of learning rates, so terminate
-                    print('Max patience reached...')
-                    print("Iter " + str(step * args.batch_size) + ", Minibatch Loss= " + \
-                          "{:.6f}".format(loss))
-                    print('Best model cost = {}'.format(patience.best_cost))
-                    break
-                else:
-                    print("Patience reached, new learning rate = {}".format(args.learning_rates[patience.learning_rates_index]))
-                    feed_dict[lr_placeholder] = args.learning_rates[patience.learning_rates_index]
+                if patience_reached:
+                    print('patience reached')
+                    if patience.learning_rates_index + 1 > len(args.learning_rates): #Ran out of learning rates, so terminate
+                        print('Max patience reached...')
+                        print("Iter " + str(step * args.batch_size) + ", Minibatch Loss= " + \
+                              "{:.6f}".format(loss))
+                        print('Best model cost = {}'.format(patience.best_cost))
+                        break
+                    else:
+                        print("Patience reached, new learning rate = {}".format(args.learning_rates[patience.learning_rates_index]))
+                        feed_dict[lr_placeholder] = args.learning_rates[patience.learning_rates_index]
 
-            if new_best_cost and ((step - last_saved_at_step) >= args.save_every):
-                print('Entering save section, step = {}, last_saved_at_step = {}'.format(step, last_saved_at_step))
+                if new_best_cost and ((step - last_saved_at_step) >= args.save_every):
+                    print('Entering save section, cost = {}, step = {}, last_saved_at_step = {}'.format(loss, step, last_saved_at_step))
+                    saver.save(sess, model_folder + 'model', global_step=step)
+                    last_saved_at_step = step
+                    json_settings['best_cost'] = float(loss)
+                    create_json(model_folder + 'network_settings.json', json_settings)
+
+                # if step % 10 == 0:
+                #     fig = plt.figure(1)
+                #     ax1 = plt.subplot(2, 1, 1)
+                #     ax2 = plt.subplot(2, 1, 2)
+                #     ax1.clear()
+                #     ax2.clear()
+                #     ax1.plot(sess.run(pred, feed_dict=feed_dict)[0, :, :n_outputs / 2])  # amplitudes
+                #     ax2.plot(stftSynth(sess.run(pred, feed_dict=feed_dict)[0, :, :n_outputs / 2],
+                #                        sess.run(pred, feed_dict=feed_dict)[0, :, n_outputs / 2:],
+                #                        json_vector_settings['M'], json_vector_settings['H']))
+                #     # fig.canvas.draw()
+
+
+                if step % args.display_step == 0:
+                    print("Iter " + str(step) + ", Minibatch Loss= " + \
+                          "{:.6f}, patience = {}, time for minibatch: {}".format(loss, patience.iterations,
+                                                                                 time.time() - start_time))
+                # if step % args.save_every == 0:
+                #     print('Saving the model... ', end='')
+                #     saver.save(sess, model_folder + 'model', global_step=step)
+                #     print('done.')
+                if step % 1000 == 0:
+                    print('evaluating model... predicted followed by ground truth:')
+                    print(sess.run([pred, y], feed_dict=feed_dict))
+                step += 1
+        except KeyboardInterrupt:
+            print()
+            print('Terminating training...')
+        finally:
+            if step >= args.num_training_steps:
+                print("Maximum iterations reached... optimization Finished!")
+            if new_best_cost:
+                print('Saving model with best cost = {}, step = {}, last_saved_at_step = {}'.format(loss, step, last_saved_at_step))
                 saver.save(sess, model_folder + 'model', global_step=step)
                 last_saved_at_step = step
                 json_settings['best_cost'] = float(loss)
                 create_json(model_folder + 'network_settings.json', json_settings)
-
-            # if step % 10 == 0:
-            #     fig = plt.figure(1)
-            #     ax1 = plt.subplot(2, 1, 1)
-            #     ax2 = plt.subplot(2, 1, 2)
-            #     ax1.clear()
-            #     ax2.clear()
-            #     ax1.plot(sess.run(pred, feed_dict=feed_dict)[0, :, :n_outputs / 2])  # amplitudes
-            #     ax2.plot(stftSynth(sess.run(pred, feed_dict=feed_dict)[0, :, :n_outputs / 2],
-            #                        sess.run(pred, feed_dict=feed_dict)[0, :, n_outputs / 2:],
-            #                        json_vector_settings['M'], json_vector_settings['H']))
-            #     # fig.canvas.draw()
-
-
-            if step % args.display_step == 0:
-                print("Iter " + str(step) + ", Minibatch Loss= " + \
-                      "{:.6f}, patience = {}, time for minibatch: {}".format(loss, patience.iterations,
-                                                                             time.time() - start_time))
-            # if step % args.save_every == 0:
-            #     print('Saving the model... ', end='')
-            #     saver.save(sess, model_folder + 'model', global_step=step)
-            #     print('done.')
-            if step % 1000 == 0:
-                print('evaluating model... predicted followed by ground truth:')
                 print(sess.run([pred, y], feed_dict=feed_dict))
-            step += 1
 
-        print("Maximum iterations reached... optimization Finished!")
-        print(sess.run([pred, y], feed_dict=feed_dict))
-        saver.save(sess, model_folder + 'model', global_step=step)
+
+
 
         # git_label = subprocess.check_output(["git", "describe"])
-        json_settings['best_cost'] = float(patience.best_cost)
+
         # json_settings['git_commit'] = git_label
-        create_json(model_folder + 'network_settings.json', json_settings)
+
         # with open(model_folder + 'network_settings.json', mode='w') as settings_file:
         #     json.dump(json_settings, settings_file)
         # with open(best_model_folder + 'network_settings.json', mode='w') as settings_file:
