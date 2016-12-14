@@ -30,8 +30,8 @@ import os
 #     plt.pause(0.001)
 
 
-MODEL_NAME = 'stft_400_M512'
-vector_folder = './preprocess/stft/vectors/dataset_d_4_p_60/0/'
+MODEL_NAME = 'TTMI02X01_stft_800_M512_xavier'
+vector_folder = './preprocess/stft/vectors/TTMI02X01/0/'
 
 mX = np.load(vector_folder + 'mag.npy')
 pX = np.load(vector_folder + 'phase.npy')
