@@ -130,6 +130,7 @@ def main(args):
                     saver.save(sess, model_folder + 'model', global_step=step)
                     last_saved_at_step = step
                     json_settings['best_cost'] = float(loss)
+                    json_settings['training_steps'] = last_saved_at_step
                     create_json(model_folder + 'network_settings.json', json_settings)
 
                 # if step % 10 == 0:
@@ -168,6 +169,7 @@ def main(args):
                 saver.save(sess, model_folder + 'model', global_step=step)
                 last_saved_at_step = step
                 json_settings['best_cost'] = float(loss)
+                json_settings['training_steps'] = last_saved_at_step
                 create_json(model_folder + 'network_settings.json', json_settings)
                 print(sess.run([pred, y], feed_dict=feed_dict))
 
