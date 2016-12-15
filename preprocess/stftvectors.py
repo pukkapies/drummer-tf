@@ -18,9 +18,9 @@ SAMPLE_RATE = 44100 # Assume all files to be loaded have the same sample rate, o
 
 # STFT parameters
 N = 512
-M = 512
+M = 511
 H = 128
-window = 'hanning'
+window = 'blackmanharris'
 
 mX_norm_range = [0.1, 0.9]
 pX_norm_range = [0.1, 0.9]

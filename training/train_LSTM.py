@@ -18,8 +18,7 @@ def main(args):
     # loaded is a list of lists. Each sublist is length 3, with np.array entries of xtfreq, xtmag, xtphase
     # Each shape is (164, 100) = (numFrames, maxSines)
     # json_vector_settings is a dict with settings used for the SineModel
-    analysis_type = args.analysis_type
-    loaded, json_vector_settings = load_from_dir_root(args.vector_folder, analysis_type)
+    loaded, json_vector_settings, analysis_type = load_from_dir_root(args.vector_folder)
 
     if not os.path.exists(args.model_folder):
         print("Model folder does not exist, training new model.")

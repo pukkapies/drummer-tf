@@ -17,7 +17,7 @@ def load_npy(filepath, filenames_list):
         data.append(np.load(filepath + '/' + filenames_list[i]))
     return data
 
-def load_from_dir_root(rootdir, analysis_type):
+def load_from_dir_root(rootdir):
     """
     Loads all data saved in a given folder. Searches through all subfolders and finds every folder that contains
     the file names listed in 'filenames'. Returns them in the list 'loaded_data'. Also searches for the
@@ -27,15 +27,21 @@ def load_from_dir_root(rootdir, analysis_type):
     :param analysis_type: String, e.g. 'stft' or 'sine_model'
     :return: loaded_data list of lists, dict of vectorisation settings, analysis_type
     """
+    # Find json file to get the analysis type
+    for file in os.listdir(rootdir):
+        if '_settings.json' in file:
+            analysis_type = file[:-14]
     assert analysis_type in filenames_list_dict.keys()
+
+    with open(rootdir + '/{}_settings.json'.format(analysis_type)) as json_file:
+        json_vector_settings_dict = json.load(json_file)
 
     filenames_list = filenames_list_dict[analysis_type]
     if not os.path.exists(rootdir):
         raise InvalidPathError("{} does not exist!".format(rootdir))
     if not os.path.exists(rootdir + '/{}_settings.json'.format(analysis_type)):
         raise Exception("{}_settings.json file not found. Maybe the data hasn't been vectorised yet.".format(analysis_type))
-    with open(rootdir + '/{}_settings.json'.format(analysis_type)) as json_file:
-        json_vector_settings_dict = json.load(json_file)
+
     loaded_data = []
     for root, dir, filenames in os.walk(rootdir):
         if all(x in filenames for x in filenames_list):
@@ -44,7 +50,7 @@ def load_from_dir_root(rootdir, analysis_type):
             print(data)
             print('done')
             loaded_data.append(data)
-    return loaded_data, json_vector_settings_dict
+    return loaded_data, json_vector_settings_dict, analysis_type
 
 def create_json(settings_file, json_dict):
     with open(settings_file, 'w') as json_file:

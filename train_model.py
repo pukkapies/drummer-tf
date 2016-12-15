@@ -69,9 +69,9 @@ def get_arguments():
                         help='Maximum number of iterations for patience.')
     parser.add_argument('--plateau_tol', type=float, nargs='+',
                         help='Plateau tolerance. Number of iterations and minimum cost decrease.')
-    parser.add_argument('--analysis_type', type=str, default=None,
-                        help='The analysis type to use on the audio data. Supported options are'
-                             '"stft" and "sine_model"')
+    # parser.add_argument('--analysis_type', type=str, default=None,
+    #                     help='The analysis type to use on the audio data. Supported options are'
+    #                          '"stft" and "sine_model"')
     # parser.add_argument('--wavenet_params', type=str, default=WAVENET_PARAMS,
     #                     help='JSON file with the network parameters.')
     # parser.add_argument('--sample_size', type=int, default=SAMPLE_SIZE,
@@ -108,7 +108,7 @@ if __name__ == '__main__':
         if not os.path.exists(args.vector_folder):
             raise Exception('{} not found'.format(args.vector_folder))
 
-    if args.analysis_type not in ['stft', 'sine_model']:
-        raise Exception('--analysis_type is a required argument. Options: "stft", "sine_model"')
+    if args.vector_folder[-1] == '/':
+        args.vector_folder = args.vector_folder[:-1]
 
     main(args)
