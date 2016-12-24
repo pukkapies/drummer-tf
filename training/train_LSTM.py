@@ -12,6 +12,8 @@ from utils.utils import load_saved_model_to_resume_training
 from utils.vectorisation_utils import create_json
 import matplotlib.pyplot as plt
 from models.stft import stftSynth
+from nn_models.layers import Dense
+from nn_models.initialisers import wbVars_XavierReLU, wbVars_Xavier
 
 
 def main(args):
@@ -49,8 +51,25 @@ def main(args):
     feed_dict = {y: data_dict['output_data'], x: data_dict['input_data']}
     lr_placeholder = tf.placeholder(tf.float32) # Learning rate
 
-    lstm = SimpleLSTM(x, initial_states, n_hidden, n_outputs, activation_fn=tf.sigmoid)
-    pred = lstm.prediction
+    assert len(n_hidden) >= 1
+    assert len(n_hidden) == len(initial_states)
+
+    # Turn n_outputs into a list for convenience
+    if len(n_hidden) == 1:
+        n_outputs = [n_outputs]
+    else:
+        n_outputs = n_hidden[1:] + [n_outputs]
+
+    dense_fns = []
+    for i in range(len(n_hidden)):
+        lstm = SimpleLSTM(n_hidden[i], scope='LSTM_model/layer_{}'.format(i+1))
+        lstm_outputs, _ = lstm(x, initial_states[i])  # lstm_outputs is Tensor of shape (n_steps, batch_size, n_hidden[i])
+        lstm_outputs = tf.unpack(lstm_outputs)  # Make it into list length n_steps, each entry (batch_size, n_hidden[i])
+        dense_fns.append(Dense(scope="LSTM_model/layer_{}".format(i + 1), size=n_outputs[i],
+                               nonlinearity=tf.sigmoid, initialiser=wbVars_Xavier))
+        x = [dense_fns[i](output) for output in lstm_outputs]
+
+    pred = tf.pack(x)
 
     # pred = setup_non_self_updating_rnn(x, n_hidden[0], n_outputs)
     print('pred shape: ', pred.get_shape()) # (batch_size, n_steps, n_outputs)

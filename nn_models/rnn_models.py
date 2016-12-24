@@ -5,52 +5,23 @@ import numpy as np
 
 class SimpleLSTM(object):
 
-    def __init__(self, input_placeholder, state_placeholder, n_hidden, n_outputs, activation_fn=tf.sigmoid):
+    def __init__(self, n_hidden, scope=None):
         """
         Sets up the LSTM model with an additional output filter to shape to size n_outputs
         :param input_placeholder: Placeholder tensor of shape (n_steps, batch_size, n_inputs)
         :param state_placeholder: List (length num_layers) of a tuple of 2 placeholder tensors of shape (batch_size, n_hidden).
                 Can be None, in which case, the LSTM is initialised with a zero state (see rnn.rnn implementation)
-        :param n_hidden: List of size of the hidden layers of the LSTM
-        :param n_outputs: Size of the output
+        :param n_hidden: size of the hidden layers of the LSTM
         """
-        assert len(n_hidden) >= 1
-        assert len(n_hidden) == len(state_placeholder)
+        self.cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
+        self.scope = scope
 
-        self.num_layers = len(n_hidden)
-        self.weights_out = []
-        self.biases_out = []
-        self.cell = []
-        self.activation_fn = activation_fn
-        print('n_outputs:', n_outputs)
-        print('n_hidden:', n_hidden)
-
-        # Turn n_outputs into a list for convenience
-        if len(n_hidden)==1:
-            n_outputs = [n_outputs]
-        else:
-            n_outputs = n_hidden[1:] + [n_outputs]
-
-        for i in range(len(n_hidden)):
-            glorot_init_boundary = np.sqrt(6. / (n_hidden[i] + n_outputs[i]))
-            with tf.variable_scope('LSTM_model/layer_{}'.format(i+1)):
-                self.weights_out.append(tf.Variable(tf.random_uniform([n_hidden[i], n_outputs[i]],
-                                                                      minval=-glorot_init_boundary,
-                                                                      maxval=glorot_init_boundary)))
-                self.biases_out.append(tf.Variable(tf.zeros([n_outputs[i]])))
-                # self.weights_out.append(tf.Variable(tf.random_normal([n_hidden[i], n_outputs[i]])))
-                # self.biases_out.append(tf.Variable(tf.random_normal([n_outputs[i]])))
-                # The following doesn't yet create variables, so doesn't use the variable_scope
-                self.cell.append(rnn_cell.BasicLSTMCell(n_hidden[i], forget_bias=1.0))
-
-        self.prediction, self.state = self.sample(input_placeholder, state_placeholder)
-
-    def sample(self, input, state):
+    def __call__(self, input, init_state):
         """
-        Samples from the RNN model, computing outputs for given inputs and initial state
+        Calls the RNN model, computing outputs for given inputs and initial state
         :param input: Tensor of shape (n_steps, batch_size, n_inputs)
-        :param state: Initial state. List (length num_layers) of a tuple of 2 tensors of shape (batch_size, n_hidden[i])
-        :return: outputs (shape is (n_steps, batch_size, n_outputs)), states (list of final states for each layer)
+        :param state: Initial state. Tuple of 2 tensors of shape (batch_size, n_hidden)
+        :return: outputs (shape is (n_steps, batch_size, n_outputs)), final state
         """
         n_steps = input.get_shape()[0]
         n_input = input.get_shape()[2]
@@ -60,7 +31,6 @@ class SimpleLSTM(object):
         # Current data input shape: (batch_size, n_steps, n_input)
         # Required shape: 'n_steps' tensors list of shape (batch_size, n_input)
 
-        # print('input shape:', input.get_shape())
         # # Permuting batch_size and n_steps
         # x = tf.transpose(input, [1, 0, 2])
         print('input shape:', input.get_shape())
@@ -70,31 +40,19 @@ class SimpleLSTM(object):
         # Split to get a list of 'n_steps' tensors of shape (batch_size, n_input)
         x = tf.split(0, n_steps, x)
         print('after splitting, x length and shape: ', [len(x), x[0].get_shape()])
-        print('state[0]: ', state[0])
+        print('state: ', init_state)
 
-        print('weights list length: ', len(self.weights_out))
-        print('weights_out shape[0]:', self.weights_out[0].get_shape())
-
-        final_states = []
         # Get lstm cell output
-        for i in range(self.num_layers):
-            with tf.variable_scope("LSTM_model/layer_{}".format(i+1)):
-                # NB outputs is a list of length n_steps of network outputs, states is just the final state
-                outputs, states = rnn.rnn(self.cell[i], x, initial_state=state[i], dtype=tf.float32)
-                print('outputs shape:', outputs[0].get_shape())
-                print('states shape:', states[0].get_shape()) # (batch_size, n_hidden)
-                final_states.append(states)
+        # NB outputs is a list of length n_steps of network outputs, state is just the final state
+        with tf.variable_scope(self.scope):
+            outputs, final_state = rnn.rnn(self.cell, x, initial_state=init_state, dtype=tf.float32)
+        print('outputs shape:', outputs[0].get_shape())
+        print('states shape:', final_state[0].get_shape()) # (batch_size, n_hidden) NB This has [0] because it is LSTMStateTuple
 
-                # Linear activation, using rnn inner loop
-                final_output = [self.activation_fn(tf.matmul(output, self.weights_out[i]) + self.biases_out[i]) for output in outputs]
-                print('each final_outputs shape: ', final_output[0].get_shape())
-                print('length of final_outputs: ', len(final_output))
-                x = final_output
+        final_output = tf.pack(outputs)
+        print(final_output.get_shape())  # (num_steps, batch_size, n_hidden)
 
-        final_output = tf.pack(final_output)
-        print(final_output.get_shape())
-
-        return [final_output, final_states]
+        return final_output, final_state
 
 ##################################################################################################################
 

@@ -29,3 +29,7 @@ class FeedForwardEncoder(object):
         z_log_sigma = Dense("z_log_sigma", self.architecture[-1], self.dropout)(h_encoded)
         return z_mean, z_log_sigma
 
+
+class LSTMEncoder(object):
+
+    def __init__(self):
