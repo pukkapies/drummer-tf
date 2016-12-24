@@ -22,6 +22,9 @@ M = 511
 H = 128
 window = 'blackmanharris'
 
+# Anything below this will be snapped to the threshold (the idea is make the network learning easier)
+AMPLITUDE_THRESHOLD = -100
+
 mX_norm_range = [0.1, 0.9]
 pX_norm_range = [0.1, 0.9]
 
@@ -59,6 +62,8 @@ def main():
             json_dict['freq_range'] = freq_range
 
             mX, pX = STFT.stftAnal(file, w, N, H)
+
+            mX[mX <= AMPLITUDE_THRESHOLD] = AMPLITUDE_THRESHOLD
 
             # # For SHORT_TEST:
             # mX = mX[:20, :]

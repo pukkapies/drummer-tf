@@ -8,7 +8,8 @@ import tensorflow as tf
 
 import utils.vaeplot as vaeplot
 from utils.functionaltools import composeAll
-from utils.utils import print_
+from nn_models.layers import Dense, FeedForward
+# from utils.utils import print_
 
 
 class VAE():
@@ -27,23 +28,26 @@ class VAE():
     }
     RESTORE_KEY = "to_restore"
 
-    def __init__(self, architecture=[], d_hyperparams={},
+    def __init__(self, encoder, decoder, input_size, latent_size, d_hyperparams={},
                  save_graph_def=True, log_dir="./log"):
         """(Re)build a symmetric VAE model with given:
 
-            * architecture (list of nodes per encoder layer); e.g.
-               [1000, 500, 250, 10] specifies a VAE with 1000-D inputs, 10-D latents,
-               & end-to-end architecture [1000, 500, 250, 10, 250, 500, 1000]
+            * encoder (callable object that takes input tensor as argument and returns tensors z_mean, z_log_sigma
+
+            * decoder (callable object that takes z as input and returns reconstructed x)
+
+            *
 
             * hyperparameters (optional dictionary of updates to `DEFAULTS`)
         """
-        self.architecture = architecture
+        self.encoder = encoder
+        self.decoder = decoder
         self.__dict__.update(VAE.DEFAULTS, **d_hyperparams)
+        self.input_size = input_size
+        self.latent_size = latent_size
         self.sesh = tf.Session()
 
         self.datetime = datetime.now().strftime(r"%y%m%d_%H%M")
-        assert len(self.architecture) > 2, \
-            "Architecture must have more layers! (input, 1+ hidden, latent)"
 
         # build graph
         handles = self._buildGraph()
@@ -52,7 +56,7 @@ class VAE():
         self.sesh.run(tf.initialize_all_variables())
 
         # unpack handles for tensor ops to feed or fetch
-        (self.x_in, self.dropout_, self.z_mean, self.z_log_sigma,
+        (self.x_in, self.z_mean, self.z_log_sigma,
          self.x_reconstructed, self.z_, self.x_reconstructed_,
          self.cost, self.global_step, self.train_op) = handles
 
@@ -66,30 +70,15 @@ class VAE():
 
     def _buildGraph(self):
         x_in = tf.placeholder(tf.float32, shape=[None, # enables variable batch size
-                                                 self.architecture[0]], name="x")
-        dropout = tf.placeholder_with_default(1., shape=[], name="dropout")
+                                                 self.input_size], name="x")
 
-        # encoding / "recognition": q(z|x)
-        encoding = [Dense("encoding", hidden_size, dropout, self.nonlinearity)
-                    # hidden layers reversed for function composition: outer -> inner
-                    for hidden_size in reversed(self.architecture[1:-1])]
-        h_encoded = composeAll(encoding)(x_in)
-
-        # latent distribution parameterized by hidden encoding
-        # z ~ N(z_mean, np.exp(z_log_sigma)**2)
-        z_mean = Dense("z_mean", self.architecture[-1], dropout)(h_encoded)
-        z_log_sigma = Dense("z_log_sigma", self.architecture[-1], dropout)(h_encoded)
+        z_mean, z_log_sigma = self.encoder(x_in)
 
         # kingma & welling: only 1 draw necessary as long as minibatch large enough (>100)
         z = self.sampleGaussian(z_mean, z_log_sigma)
 
         # decoding / "generative": p(x|z)
-        decoding = [Dense("decoding", hidden_size, dropout, self.nonlinearity)
-                    for hidden_size in self.architecture[1:-1]] # assumes symmetry
-        # final reconstruction: restore original dims, squash outputs [0, 1]
-        decoding.insert(0, Dense( # prepend as outermost function
-            "x_decoding", self.architecture[0], dropout, self.squashing))
-        x_reconstructed = tf.identity(composeAll(decoding)(z), name="x_reconstructed")
+        x_reconstructed = self.decoder(z)
 
         # reconstruction loss: mismatch b/w x & x_reconstructed
         # binary cross-entropy -- assumes x & p(x|z) are iid Bernoullis
@@ -122,12 +111,12 @@ class VAE():
         # ops to directly explore latent space
         # defaults to prior z ~ N(0, I)
         with tf.name_scope("latent_in"):
-            z_ = tf.placeholder_with_default(tf.random_normal([1, self.architecture[-1]]),
-                                            shape=[None, self.architecture[-1]],
+            z_ = tf.placeholder_with_default(tf.random_normal([1, self.latent_size]),
+                                            shape=[None, self.latent_size],
                                             name="latent_in")
-        x_reconstructed_ = composeAll(decoding)(z_)
+        x_reconstructed_ = self.decoder(z_)
 
-        return (x_in, dropout, z_mean, z_log_sigma, x_reconstructed,
+        return (x_in, z_mean, z_log_sigma, x_reconstructed,  # Removed dropout from second place
                 z_, x_reconstructed_, cost, global_step, train_op)
 
     def sampleGaussian(self, mu, log_sigma):
@@ -276,3 +265,4 @@ class VAE():
             now = datetime.now().isoformat()[11:]
             print("------- Training end: {} -------\n".format(now))
             sys.exit(0)
+

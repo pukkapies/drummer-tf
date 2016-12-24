@@ -27,7 +27,7 @@ def load_saved_model_to_resume_training(saver, sess, model, is_file=False):
             global_step = None
         return global_step, model_folder
     else:
-        if 'best_model' in os.listdir(model):
+        if 'best_model' in os.listdir(model):  # Soon to be deprecated
             model_folder = os.path.join(*(model.split(sep='/') + ['best_model/']))
             print("Found best_model folder, trying to restore from here...")
         else:

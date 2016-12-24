@@ -30,7 +30,7 @@ import os
 #     plt.pause(0.001)
 
 
-MODEL_NAME = 'TTMI02X01_stft_800_M512_xavier'
+MODEL_NAME = 'TTMI02X01_stft_bh_600_thresh_0-1_0-9'
 vector_folder = './preprocess/stft/vectors/TTMI02X01/0/'
 
 mX = np.load(vector_folder + 'mag.npy')
@@ -75,6 +75,11 @@ sr = analysis_settings['sample_rate']
 
 
 # Unnormalise data
+
+# # TEMPORARY: DELETE THIS ASAP!!!
+# mag_normalised_range = [0,1]
+# phase_normalised_range = [0,1]
+
 mX = unnormalise_range(mX, mag_normalised_range, mag_range)
 pX = unnormalise_range(pX, phase_normalised_range, phase_range)
 
@@ -92,7 +97,18 @@ pX = unnormalise_range(pX, phase_normalised_range, phase_range)
 print('data mX min/max: ', [np.min(mX), np.max(mX)])
 print('model mX min/max: ', [np.min(mX_model), np.max(mX_model)])
 
-for i in range(20):
+
+print(np.max(mX), np.min(mX))
+mX[mX <= -90] = -200
+print(np.max(mX), np.min(mX))
+#
+# reconst = stftSynth(mX, pX, M, H)
+# soundfile.write('./recons.wav', reconst, sr)
+#
+
+
+
+for i in range(320, 340):
 
     # if 100 % (i+1) != 0: continue
 
