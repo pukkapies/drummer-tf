@@ -17,6 +17,8 @@ from utils.vectorisation_utils import load_from_dir_root
 from training.setup.setup_data import setup_training_data
 import matplotlib.pyplot as plt
 from plotting import spectogram_plot
+from nn_models.layers import Dense
+from nn_models.initialisers import wbVars_Xavier
 
 STARTED_DATESTRING = "{0:%Y-%m-%dT%H-%M-%S}".format(datetime.now())
 
@@ -36,9 +38,6 @@ def main(args):
     else:
         model_folder = args.model_folder
 
-    # if enclosing_model_folder.split(sep='/')[-1] == 'best_model':
-    #     model_name = enclosing_model_folder.split(sep='/')[-2]
-    # else:
     model_name = model_folder.split(sep='/')[-1]
 
     with open(model_folder + settings_json_string, 'r') as f:
@@ -61,7 +60,6 @@ def main(args):
 
         input_placeholder = tf.placeholder(tf.float32, shape=input_data_shape)
         input = np.zeros(input_data_shape)
-
         feed_dict = {input_placeholder: input}
 
         state_placeholders = []
@@ -72,8 +70,6 @@ def main(args):
             states.append((np.zeros((1, n_hidden[lstm_layer])), np.zeros((1, n_hidden[lstm_layer]))))
             feed_dict[state_placeholders[lstm_layer]] = states[lstm_layer]
 
-        lstm = SimpleLSTM(input_placeholder, state_placeholders, n_hidden, network_settings['n_outputs'])
-
         saver = tf.train.Saver()
 
         # saver.restore(sess, './training/saved_models/2016-11-25T08-54-35/model-20')
@@ -83,16 +79,32 @@ def main(args):
 
         print('n_steps:', network_settings['n_steps'])
 
+        n_outputs = network_settings['n_outputs']
+        if len(n_hidden) == 1:
+            n_outputs = [n_outputs]
+        else:
+            n_outputs = n_hidden[1:] + [n_outputs]
+
+        x = input_placeholder
+        lstm_states = []  # Keep track of LSTM states
+        for i in range(len(n_hidden)):
+            lstm = SimpleLSTM(n_hidden[i], scope='LSTM_model/layer_{}'.format(i + 1))
+            lstm_output, state = lstm(x, state_placeholders[i])  # lstm_outputs is Tensor of shape (n_steps, batch_size, n_hidden[i])
+            lstm_states.append(state)
+            lstm_output = tf.unpack(lstm_output)  # Make it into list length n_steps, each entry (batch_size, n_hidden[i])
+            dense = Dense(scope="LSTM_model/layer_{}".format(i + 1), size=n_outputs[i],
+                                   nonlinearity=tf.sigmoid, initialiser=wbVars_Xavier)
+            final_output = dense(lstm_output[0])
+
         for step in range(network_settings['n_steps']):
-            # output, state = rnn.rnn(lstm.cell, input, initial_state=state, dtype=tf.float32)
-            output, state = sess.run([lstm.prediction, lstm.state],
-                                     feed_dict=feed_dict)
+            output, states = sess.run([final_output] + [state for state in lstm_states],
+                                      feed_dict=feed_dict)
             outputs_list.append(output)
             input = output
             # Update feed_dict by giving the new input and states for all layers
             feed_dict[input_placeholder] = input
             for lstm_layer in range(len(n_hidden)):
-                feed_dict[state_placeholders[lstm_layer]] = state[lstm_layer]
+                feed_dict[state_placeholders[lstm_layer]] = states[lstm_layer]
 
         final_outputs = [tf.squeeze(output, [0]) for output in outputs_list]
         final_outputs = tf.pack(final_outputs)  # Make one tensor of rank 2

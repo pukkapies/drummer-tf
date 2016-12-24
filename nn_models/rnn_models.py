@@ -20,7 +20,8 @@ class SimpleLSTM(object):
         """
         Calls the RNN model, computing outputs for given inputs and initial state
         :param input: Tensor of shape (n_steps, batch_size, n_inputs)
-        :param state: Initial state. Tuple of 2 tensors of shape (batch_size, n_hidden)
+        :param init_state: Initial state. Tuple of 2 tensors of shape (batch_size, n_hidden). Can be None,
+                            in which case the initial state is set to zero
         :return: outputs (shape is (n_steps, batch_size, n_outputs)), final state
         """
         n_steps = input.get_shape()[0]
