@@ -11,8 +11,8 @@ import models.stft as STFT
 import warnings
 from utils.vectorisation_utils import create_json, InvalidPathError
 
-FOLDER_LIST = ['./data']
-OUTPUT_FOLDER = './stft/vectors/TTMI02X01'
+FOLDER_LIST = ['./rock_kit_TOMS']
+OUTPUT_FOLDER = './stft/vectors/rock_kit_TOMS'
 PLOT_FOLDER = './stft/plots'
 SAMPLE_RATE = 44100 # Assume all files to be loaded have the same sample rate, or raise an error
 
@@ -57,6 +57,7 @@ def main():
             freq_range = [0, sr / 2]
             if sr!=SAMPLE_RATE:
                 warnings.warn('Sample rate is not 44100Hz')
+            print('File length: ', file.size)
 
             json_dict['sample_rate'] = sr
             json_dict['freq_range'] = freq_range
@@ -92,7 +93,7 @@ def main():
             assert (mX <= mX_norm_range[1]).all() and (mX >= mX_norm_range[0]).all()
             assert (pX <= pX_norm_range[1]).all() and (pX >= pX_norm_range[0]).all()
 
-            output_path = OUTPUT_FOLDER + '/{}/'.format(file_count)
+            output_path = OUTPUT_FOLDER + '/{}/'.format(audio_file[:-4])  # Previously used file_count
             if not os.path.exists(output_path):
                 os.makedirs(output_path)
             ## Save the numpy arrays separately - couldn't work out how to save and load multiple arrays

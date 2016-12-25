@@ -59,6 +59,7 @@ class LSTMEncoder(object):
         lstm_encoder = SimpleLSTM(self.n_hidden, scope='LSTM_encoder')
         # outputs (shape is (n_steps, batch_size, n_outputs)), final state
         outputs, final_state = lstm_encoder(input, self.initial_state)
+        outputs = tf.unpack(outputs)  # List of length n_steps
         z_mean = Dense(scope="z_mean", size=self.latent_size, nonlinearity=tf.identity)(outputs[-1])
         z_log_sigma = Dense(scope="z_log_sigma", size=self.latent_size, nonlinearity=tf.identity)(outputs[-1])
 

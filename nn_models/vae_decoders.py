@@ -1,6 +1,6 @@
 import tensorflow as tf
 from nn_models.layers import FeedForward, Dense
-from utils.functionaltools import composeAll
+from nn_models.rnn_models import SimpleLSTM
 
 
 class FeedForwardDecoder(object):
@@ -30,33 +30,52 @@ class FeedForwardDecoder(object):
 
 
 class LSTMDecoder(object):
-    def __init__(self, n_hidden, latent_size, initial_state=None):
+    def __init__(self, n_hidden, n_outputs, n_steps, output_activation=tf.sigmoid):
         """
         Sets up an LSTM encode for the VAE
         :param n_hidden: Size of hidden layer of LSTM
-        :param latent_size: Size of latent space
+        :param n_outputs: Size of inputs/outputs for each time step
+        :param n_steps: int, number of steps to run the LSTM decoder
+        :param output_activation: Activation function to apply to final LSTM output
         """
         self.n_hidden = n_hidden
-        self.latent_size = latent_size
-        self.initial_state = initial_state
+        self.n_outputs = n_outputs
+        self.n_steps = n_steps
+        self.output_activation = output_activation
 
-    def __call__(self, input):
+    def __call__(self, z):
         """
-        Calls the LSTM encoder
-        :param input: Tensor of shape (n_steps, batch_size, n_inputs)
-        :param init_state: Initial state. Tuple of 2 tensors of shape (batch_size, n_hidden). Can be None,
-                            in which case the initial state is set to zero
-        :return: z_mean, z_log_sigma, both of size latent_size
+        Calls the LSTM decoder
+        :param z: Tensor of shape (batch_size, latent_size)
+        :return: final_outputs: list of lenght n_steps of Tensor elements of shape (batch_size, n_hidden)
         """
         # encoding / recognition model q(z|x)
-        print("Before unpack, input shape: ", input.get_shape())
-        x = tf.unpack(input)  # List of length n_steps, each element is (batch_size, n_inputs)
-        n_steps = len(x)
-        print("After unpack, input has length {} and elements shape".format(len(x)), x[0].get_shape())
-        lstm_encoder = SimpleLSTM(self.n_hidden, scope='LSTM_encoder')
-        # outputs (shape is (n_steps, batch_size, n_outputs)), final state
-        outputs, final_state = lstm_encoder(input, self.initial_state)
-        z_mean = Dense(scope="z_mean", size=self.latent_size, nonlinearity=tf.identity)(outputs[-1])
-        z_log_sigma = Dense(scope="z_log_sigma", size=self.latent_size, nonlinearity=tf.identity)(outputs[-1])
+        batch_size = z.get_shape()[0]
 
-        return z_mean, z_log_sigma
+        lstm_decoder = SimpleLSTM(self.n_hidden, scope='LSTM_decoder')
+        lstm_activation = lstm_decoder.lstm_activation
+
+        # (Cell state, hidden state):
+        init_states = (Dense(scope="latent_to_LSTM_cell", size=self.n_hidden, nonlinearity=lstm_activation)(z),
+                       Dense(scope="latent_to_LSTM_hidden", size=self.n_hidden, nonlinearity=lstm_activation)(z))
+
+        # input = tf.placeholder(tf.float32, shape=[1, batch_size, self.n_outputs])  # (n_steps, batch_size, n_inputs)
+        # states = (tf.placeholder(tf.float32, shape=[batch_size, self.n_hidden]),
+        #           tf.placeholder(tf.float32, shape=[batch_size, self.n_hidden]))
+
+        first_input = tf.zeros((1, batch_size, self.n_outputs))  # NB Just one step, so first argument is 1
+
+        dense_output = Dense(scope="LSTM_dense_output", size=self.n_outputs, nonlinearity=self.output_activation)
+
+        # feed_dict = {input: first_input, states[0]: first_states[0], states[1]: first_states[1]}
+        lstm_input = first_input
+        states = init_states
+        final_outputs = []
+        for step in range(self.n_steps):
+            outputs, final_state = lstm_decoder(lstm_input, states)  # outputs shape is (n_steps, batch_size, n_hidden)
+            outputs_list = tf.unpack(outputs)  # List of length 1, element shape (batch_size, n_hidden)
+            final_outputs.append(dense_output(outputs_list[0]))
+            lstm_input = outputs
+            states = final_state
+
+        return final_outputs, states

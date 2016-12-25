@@ -1,0 +1,27 @@
+{
+    "H": 128,
+    "M": 511,
+    "N": 512,
+    "freq_range": [
+        0,
+        22050.0
+    ],
+    "mag_normalised_range": [
+        0.1,
+        0.9
+    ],
+    "mag_range": [
+        -100.0,
+        -24.554003522732714
+    ],
+    "phase_normalised_range": [
+        0.1,
+        0.9
+    ],
+    "phase_range": [
+        0,
+        6.283185307179586
+    ],
+    "sample_rate": 44100,
+    "w": "blackmanharris"
+}
