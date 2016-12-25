@@ -1,20 +1,23 @@
 import tensorflow as tf
 from tensorflow.python.ops import rnn, rnn_cell
 import numpy as np
+from tensorflow.python.ops.math_ops import tanh
 
 
 class SimpleLSTM(object):
 
-    def __init__(self, n_hidden, scope=None):
+    def __init__(self, n_hidden, scope=None, lstm_activation=tanh):
         """
         Sets up the LSTM model with an additional output filter to shape to size n_outputs
         :param input_placeholder: Placeholder tensor of shape (n_steps, batch_size, n_inputs)
         :param state_placeholder: List (length num_layers) of a tuple of 2 placeholder tensors of shape (batch_size, n_hidden).
                 Can be None, in which case, the LSTM is initialised with a zero state (see rnn.rnn implementation)
         :param n_hidden: size of the hidden layers of the LSTM
+        :param lstm_activation: Activation function of the inner states of the LSTM
         """
-        self.cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
+        self.cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0, activation=lstm_activation)
         self.scope = scope
+        self.lstm_activation = lstm_activation
 
     def __call__(self, input, init_state):
         """
