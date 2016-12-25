@@ -51,7 +51,7 @@ def main(args):
     N = analysis_settings['N']
     sr = analysis_settings['sample_rate']
 
-    input_data_shape = (1, 1, network_settings['n_inputs'])
+    input_data_shape = (1, 1, network_settings['n_inputs'])  # (num_steps, batch_size, n_inputs)
 
 
     with tf.Session() as sess:
@@ -67,15 +67,8 @@ def main(args):
         for lstm_layer in range(len(n_hidden)):
             state_placeholders.append((tf.placeholder(tf.float32, shape=(1, n_hidden[lstm_layer]), name='cell'),  # batch_size = 1
                                        tf.placeholder(tf.float32, shape=(1, n_hidden[lstm_layer]), name='hidden')))  # batch_size = 1
-            states.append((np.zeros((1, n_hidden[lstm_layer])), np.zeros((1, n_hidden[lstm_layer]))))
+            states.append([np.zeros((1, n_hidden[lstm_layer])), np.zeros((1, n_hidden[lstm_layer]))])
             feed_dict[state_placeholders[lstm_layer]] = states[lstm_layer]
-
-        saver = tf.train.Saver()
-
-        # saver.restore(sess, './training/saved_models/2016-11-25T08-54-35/model-20')
-        load_saved_model_to_resume_training(saver, sess, model_folder)
-
-        outputs_list = []
 
         print('n_steps:', network_settings['n_steps'])
 
@@ -96,15 +89,23 @@ def main(args):
                                    nonlinearity=tf.sigmoid, initialiser=wbVars_Xavier)
             final_output = dense(lstm_output[0])
 
+        saver = tf.train.Saver()
+        # saver.restore(sess, './training/saved_models/2016-11-25T08-54-35/model-20')
+        load_saved_model_to_resume_training(saver, sess, model_folder)
+
+        outputs_list = []
         for step in range(network_settings['n_steps']):
-            output, states = sess.run([final_output] + [state for state in lstm_states],
-                                      feed_dict=feed_dict)
+            output, *states = sess.run([final_output] + [state for state in lstm_states],
+                                      feed_dict=feed_dict)  # states is list of LSTMStateTuple (length num_layers)
+            # output is shape (batch_size, n_outputs), but it needs to be (n_steps=1, batch_size, n_outputs)
+            output = np.expand_dims(output, axis=0)
             outputs_list.append(output)
+            lstm_layer_states= states
             input = output
             # Update feed_dict by giving the new input and states for all layers
             feed_dict[input_placeholder] = input
             for lstm_layer in range(len(n_hidden)):
-                feed_dict[state_placeholders[lstm_layer]] = states[lstm_layer]
+                feed_dict[state_placeholders[lstm_layer]] = lstm_layer_states[lstm_layer]
 
         final_outputs = [tf.squeeze(output, [0]) for output in outputs_list]
         final_outputs = tf.pack(final_outputs)  # Make one tensor of rank 2
