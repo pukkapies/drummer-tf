@@ -4,6 +4,7 @@ import numpy as np
 import os
 import json
 
+# List of filenames that comprise the data
 filenames_list_dict = {'stft': ['mag.npy', 'phase.npy'],
                        'sine_model': ['freq.npy', 'mag.npy', 'phase.npy', 'active_tracks.npy']}
 
@@ -23,9 +24,7 @@ def load_from_dir_root(rootdir):
     the file names listed in 'filenames'. Returns them in the list 'loaded_data'. Also searches for the
     vectorisation settings file according to 'analysis_type' and returns a dict with the settings.
     :param rootdir: Path to the root directory where all data is saved
-    :param filenames: List of filenames that comprise the data, e.g. ['mag.npy', 'phase.npy']
-    :param analysis_type: String, e.g. 'stft' or 'sine_model'
-    :return: loaded_data list of lists, dict of vectorisation settings, analysis_type
+    :return: loaded_data list of lists containing npy arrays, dict of vectorisation settings, analysis_type
     """
     # Find json file to get the analysis type
     for file in os.listdir(rootdir):
@@ -45,10 +44,9 @@ def load_from_dir_root(rootdir):
     loaded_data = []
     for root, dir, filenames in os.walk(rootdir):
         if all(x in filenames for x in filenames_list):
-            print('Loading files from {}...'.format(root), end='')
+            # print('Loading files from {}...'.format(root), end='')
             data = load_npy(root, filenames_list)
-            print(data)
-            print('done')
+            # print('done')
             loaded_data.append(data)
     return loaded_data, json_vector_settings_dict, analysis_type
 

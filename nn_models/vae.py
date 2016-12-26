@@ -214,7 +214,7 @@ class VAE():
                 x = self.dataset.next_batch()  # (batch_size, n_steps, n_inputs)
                 x = np.transpose(x, [1, 0, 2])  # (n_steps, batch_size, n_inputs)
 
-                feed_dict = {self.x_in: x, self.dropout_: self.dropout}
+                feed_dict = {self.x_in: x}
                 fetches = [self.x_reconstructed, self.cost, self.global_step, self.train_op]
                 x_reconstructed, cost, i, _ = self.sesh.run(fetches, feed_dict)
 
