@@ -236,6 +236,11 @@ class VAE():
                     #     vaeplot.plotSubset(self, x, x_reconstructed, n=10, name="cv",
                     #                     outdir=plots_outdir)
 
+                if i % 500 == 0:
+                    outfile = os.path.join(os.path.abspath(outdir), "{}_vae_{}".format(
+                        self.datetime, "_".join(map(str, 'LSTM'))))
+                    saver.save(self.sesh, outfile, global_step=self.step)
+
                 if i >= max_iter or self.dataset.epochs_completed >= max_epochs:
                     print("final avg cost (@ step {} = epoch {}): {}".format(
                         i, self.dataset.epochs_completed, err_train / i))

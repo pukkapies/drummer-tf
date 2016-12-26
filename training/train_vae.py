@@ -45,5 +45,5 @@ def main(args):
 
     vae = VAE(encoder, decoder, n_input, input_placeholder, latent_dim, dataset)
 
-    vae.train()
+    vae.train(max_iter=args.num_training_steps)
 
