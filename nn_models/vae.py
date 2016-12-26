@@ -19,16 +19,13 @@ class VAE():
     (http://arxiv.org/abs/1312.6114)
     """
     DEFAULTS = {
-        "batch_size": 128,
         "learning_rate": 1E-3,
         "dropout": 1.,
-        "lambda_l2_reg": 0.,
-        "nonlinearity": tf.nn.elu,
-        "squashing": tf.nn.sigmoid
+        "lambda_l2_reg": 0.
     }
     RESTORE_KEY = "to_restore"
 
-    def __init__(self, encoder, decoder, input_size, latent_size, d_hyperparams={},
+    def __init__(self, encoder, decoder, input_size, input_placeholder, latent_size, dataset, d_hyperparams={},
                  save_graph_def=True, log_dir="./log"):
         """(Re)build a symmetric VAE model with given:
 
@@ -42,10 +39,13 @@ class VAE():
         """
         self.encoder = encoder
         self.decoder = decoder
+        self.input_placeholder = input_placeholder
         self.__dict__.update(VAE.DEFAULTS, **d_hyperparams)
         self.input_size = input_size
         self.latent_size = latent_size
         self.sesh = tf.Session()
+        self.dataset = dataset
+        self.batch_size = self.dataset.minibatch_size
 
         self.datetime = datetime.now().strftime(r"%y%m%d_%H%M")
 
@@ -69,10 +69,12 @@ class VAE():
         return self.global_step.eval(session=self.sesh)
 
     def _buildGraph(self):
-        x_in = tf.placeholder(tf.float32, shape=[None, # enables variable batch size
-                                                 self.input_size], name="x")
+        x_in = self.input_placeholder
 
         z_mean, z_log_sigma = self.encoder(x_in)
+
+        print('z_mean shape: ', z_mean.get_shape())
+        print('z_log_sigma shape: ', z_log_sigma.get_shape())
 
         # kingma & welling: only 1 draw necessary as long as minibatch large enough (>100)
         z = self.sampleGaussian(z_mean, z_log_sigma)
@@ -80,12 +82,21 @@ class VAE():
         # decoding / "generative": p(x|z)
         x_reconstructed = self.decoder(z)
 
+        print([var._variable for var in tf.all_variables()])
+
         # reconstruction loss: mismatch b/w x & x_reconstructed
         # binary cross-entropy -- assumes x & p(x|z) are iid Bernoullis
-        rec_loss = VAE.crossEntropy(x_reconstructed, x_in)
+
+        print('x_reconstructed shape: ', x_reconstructed.get_shape())
+        print('x_in shape: ', x_in.get_shape())
+
+        # rec_loss = VAE.crossEntropy(x_reconstructed, x_in)
+        rec_loss = tf.reduce_mean((x_reconstructed - x_in)**2)
 
         # Kullback-Leibler divergence: mismatch b/w approximate vs. imposed/true posterior
         kl_loss = VAE.kullbackLeibler(z_mean, z_log_sigma)
+
+        print("Defined loss functions")
 
         with tf.name_scope("l2_regularization"):
             regularizers = [tf.nn.l2_loss(var) for var in self.sesh.graph.get_collection(
@@ -108,11 +119,13 @@ class VAE():
             train_op = optimizer.apply_gradients(clipped, global_step=global_step,
                                                  name="minimize_cost")
 
+        print("Defined training ops")
+
         # ops to directly explore latent space
         # defaults to prior z ~ N(0, I)
         with tf.name_scope("latent_in"):
             z_ = tf.placeholder_with_default(tf.random_normal([1, self.latent_size]),
-                                            shape=[None, self.latent_size],
+                                            shape=[1, self.latent_size],
                                             name="latent_in")
         x_reconstructed_ = self.decoder(z_)
 
@@ -185,9 +198,10 @@ class VAE():
         # np.array -> np.array
         return self.decode(self.sampleGaussian(*self.encode(x)))
 
-    def train(self, X, max_iter=np.inf, max_epochs=np.inf, cross_validate=True,
+    def train(self, max_iter=np.inf, max_epochs=np.inf, cross_validate=True,
               verbose=True, save=True, outdir="./out", plots_outdir="./png",
               plot_latent_over_time=False):
+        print("inside training function")
         if save:
             saver = tf.train.Saver(tf.all_variables())
 
@@ -196,61 +210,39 @@ class VAE():
             now = datetime.now().isoformat()[11:]
             print("------- Training begin: {} -------\n".format(now))
 
-            if plot_latent_over_time: # plot latent space over log_BASE time
-                BASE = 2
-                INCREMENT = 0.5
-                pow_ = 0
-
             while True:
-                x, _ = X.train.next_batch(self.batch_size)
+                x = self.dataset.next_batch()  # (batch_size, n_steps, n_inputs)
+                x = np.transpose(x, [1, 0, 2])  # (n_steps, batch_size, n_inputs)
+
                 feed_dict = {self.x_in: x, self.dropout_: self.dropout}
                 fetches = [self.x_reconstructed, self.cost, self.global_step, self.train_op]
                 x_reconstructed, cost, i, _ = self.sesh.run(fetches, feed_dict)
 
                 err_train += cost
 
-                if plot_latent_over_time:
-                    while int(round(BASE**pow_)) == i:
-                        vaeplot.exploreLatent(self, nx=30, ny=30, ppf=True, outdir=plots_outdir,
-                                           name="explore_ppf30_{}".format(pow_))
-
-                        names = ("train", "validation", "test")
-                        datasets = (X.train, X.validation, X.test)
-                        for name, dataset in zip(names, datasets):
-                            vaeplot.plotInLatent(self, dataset.images, dataset.labels, range_=
-                                              (-6, 6), title=name, outdir=plots_outdir,
-                                              name="{}_{}".format(name, pow_))
-
-                        print("{}^{} = {}".format(BASE, pow_, i))
-                        pow_ += INCREMENT
-
                 if i%1000 == 0 and verbose:
                     print("round {} --> avg cost: ".format(i), err_train / i)
 
-                if i%2000 == 0 and verbose:# and i >= 10000:
-                    # visualize `n` examples of current minibatch inputs + reconstructions
-                    vaeplot.plotSubset(self, x, x_reconstructed, n=10, name="train",
-                                    outdir=plots_outdir)
+                # if i%2000 == 0 and verbose:# and i >= 10000:
+                    # if cross_validate:
+                    #     x, _ = X.validation.next_batch(self.batch_size)
+                    #     feed_dict = {self.x_in: x}
+                    #     fetches = [self.x_reconstructed, self.cost]
+                    #     x_reconstructed, cost = self.sesh.run(fetches, feed_dict)
+                    #
+                    #     print("round {} --> CV cost: ".format(i), cost)
+                    #     vaeplot.plotSubset(self, x, x_reconstructed, n=10, name="cv",
+                    #                     outdir=plots_outdir)
 
-                    if cross_validate:
-                        x, _ = X.validation.next_batch(self.batch_size)
-                        feed_dict = {self.x_in: x}
-                        fetches = [self.x_reconstructed, self.cost]
-                        x_reconstructed, cost = self.sesh.run(fetches, feed_dict)
-
-                        print("round {} --> CV cost: ".format(i), cost)
-                        vaeplot.plotSubset(self, x, x_reconstructed, n=10, name="cv",
-                                        outdir=plots_outdir)
-
-                if i >= max_iter or X.train.epochs_completed >= max_epochs:
+                if i >= max_iter or self.dataset.epochs_completed >= max_epochs:
                     print("final avg cost (@ step {} = epoch {}): {}".format(
-                        i, X.train.epochs_completed, err_train / i))
+                        i, self.dataset.epochs_completed, err_train / i))
                     now = datetime.now().isoformat()[11:]
                     print("------- Training end: {} -------\n".format(now))
 
                     if save:
                         outfile = os.path.join(os.path.abspath(outdir), "{}_vae_{}".format(
-                            self.datetime, "_".join(map(str, self.architecture))))
+                            self.datetime, "_".join(map(str, 'LSTM'))))
                         saver.save(self.sesh, outfile, global_step=self.step)
                     try:
                         self.logger.flush()
@@ -261,7 +253,7 @@ class VAE():
 
         except(KeyboardInterrupt):
             print("final avg cost (@ step {} = epoch {}): {}".format(
-                i, X.train.epochs_completed, err_train / i))
+                i, self.dataset.epochs_completed, err_train / i))
             now = datetime.now().isoformat()[11:]
             print("------- Training end: {} -------\n".format(now))
             sys.exit(0)
