@@ -6,9 +6,7 @@ sys.path.insert(0,'.')
 import argparse
 from datetime import datetime
 import os
-from training.train_LSTM import main
-import tensorflow as tf
-from nn_models.layers import Dense, FeedForward
+from training.train_vae import main
 
 
 VECTOR_FOLDER = None
@@ -59,8 +57,12 @@ def get_arguments():
                         help='Number of training steps.')
     parser.add_argument('--learning_rates', default=LEARNING_RATE_LIST, type=float, nargs='+',
                         help='Learning rate list for training.')
-    parser.add_argument('--lstm_hidden_units', default=N_HIDDEN, type=int, nargs='+',
-                        help='Number of hidden units in each LSTM layer')
+    parser.add_argument('--lstm_encoder_hidden_units', default=N_HIDDEN, type=int, nargs='+',
+                        help='Number of hidden units in each LSTM encoder layer')
+    parser.add_argument('--lstm_decoder_hidden_units', default=N_HIDDEN, type=int, nargs='+',
+                        help='Number of hidden units in each LSTM decoder layer')
+    parser.add_argument('--latent_space_dimension', default=2, type=int,
+                         help='Dimension of the latent (z) space')
     parser.add_argument('--display_step', type=int, default=DISPLAY_STEP,
                         help='How often to display training progress and save model.')
     parser.add_argument('--grad_clip', type=float, default=5.,
@@ -72,10 +74,6 @@ def get_arguments():
     parser.add_argument('--plateau_tol', type=float, nargs='+',
                         help='Plateau tolerance. Number of iterations and minimum cost decrease.')
     return parser.parse_args()
-
-
-
-
 
 
 if __name__ == '__main__':
