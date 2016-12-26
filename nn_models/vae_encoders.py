@@ -1,6 +1,7 @@
 import tensorflow as tf
 from nn_models.layers import FeedForward, Dense
 from nn_models.rnn_models import SimpleLSTM
+from nn_models.initialisers import wbVars_Xavier
 
 
 class FeedForwardEncoder(object):
@@ -53,14 +54,13 @@ class LSTMEncoder(object):
         """
         # encoding / recognition model q(z|x)
         print("Before unpack, input shape: ", input.get_shape())
-        x = tf.unpack(input)  # List of length n_steps, each element is (batch_size, n_inputs)
-        n_steps = len(x)
-        print("After unpack, input has length {} and elements shape".format(len(x)), x[0].get_shape())
+        # x = tf.unpack(input)  # List of length n_steps, each element is (batch_size, n_inputs)
+        # n_steps = len(x)
+        # print("After unpack, input has length {} and elements shape".format(len(x)), x[0].get_shape())
         lstm_encoder = SimpleLSTM(self.n_hidden, scope='LSTM_encoder')
         # outputs (shape is (n_steps, batch_size, n_outputs)), final state
         outputs, final_state = lstm_encoder(input, self.initial_state)
         outputs = tf.unpack(outputs)  # List of length n_steps
-        z_mean = Dense(scope="z_mean", size=self.latent_size, nonlinearity=tf.identity)(outputs[-1])
-        z_log_sigma = Dense(scope="z_log_sigma", size=self.latent_size, nonlinearity=tf.identity)(outputs[-1])
-
+        z_mean = Dense(scope="z_mean", size=self.latent_size, nonlinearity=tf.identity, initialiser=wbVars_Xavier)(outputs[-1])
+        z_log_sigma = Dense(scope="z_log_sigma", size=self.latent_size, nonlinearity=tf.identity, initialiser=wbVars_Xavier)(outputs[-1])
         return z_mean, z_log_sigma
