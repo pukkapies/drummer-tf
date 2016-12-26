@@ -9,7 +9,8 @@ import tensorflow as tf
 def main(args):
     loaded, json_vector_settings, analysis_type = load_from_dir_root(args.vector_folder)
 
-    dataset = DatasetFeed(loaded, 4)
+    batch_size = args.batch_size
+    dataset = DatasetFeed(loaded, batch_size)
 
     #TODO Figure out a better way to choose the padding value
     dataset.set_all_data_blocks_to_max_shape(json_vector_settings['mag_normalised_range'][0])
@@ -22,7 +23,6 @@ def main(args):
         print("Model folder does not exist, training new model.")
         os.makedirs(args.model_folder)
 
-    batch_size = args.batch_size
     latent_dim = args.latent_space_dimension
     n_hidden_encoder = args.lstm_encoder_hidden_units[0]  # Just one hidden layer for now
     n_hidden_decoder = args.lstm_decoder_hidden_units[0]
