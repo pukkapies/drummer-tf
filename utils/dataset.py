@@ -11,6 +11,7 @@ class DatasetFeed(object):
         assert type(loaded_list) == list
         self.data = self.concatenate_npy_arrays(loaded_list)
         self.num_data_points = len(self.data)
+        print("Number of data points loaded: ", self.num_data_points)
         self.max_data_shape, self.ndim = self.get_max_data_shape()
         self.minibatch_size = minibatch_size
         assert self.minibatch_size <= len(self.data), "Data minibatch must be less than the number of data points"
@@ -69,7 +70,7 @@ class DatasetFeed(object):
         current_index = self.current_dataset_index
         next_index = self.current_dataset_index + self.minibatch_size
         if next_index <= self.num_data_points:
-            self.current_dataset_index = next_index
+            self.current_dataset_index = next_index % self.num_data_points  # In case next_index == self.num_data_points
             return np.asarray(self.data[current_index: next_index])
         else:
             self.current_dataset_index = next_index % self.num_data_points

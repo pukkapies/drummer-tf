@@ -212,8 +212,9 @@ class VAE():
 
             while True:
                 x = self.dataset.next_batch()  # (batch_size, n_steps, n_inputs)
+                print("Next data batch shape: ", x.shape)
                 x = np.transpose(x, [1, 0, 2])  # (n_steps, batch_size, n_inputs)
-                print(x.shape)
+                print("After transposing: ", x.shape)
 
                 feed_dict = {self.x_in: x}
                 fetches = [self.x_reconstructed, self.cost, self.global_step, self.train_op]
@@ -221,7 +222,7 @@ class VAE():
 
                 err_train += cost
 
-                if i%1000 == 0 and verbose:
+                if i%10 == 0 and verbose:
                     print("round {} --> avg cost: ".format(i), err_train / i)
 
                 # if i%2000 == 0 and verbose:# and i >= 10000:
