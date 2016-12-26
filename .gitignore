@@ -8,6 +8,7 @@
 *.pyc
 *.DS_Store
 
+log/
 training/saved_models/
 training/logdir/
 testfolder/
