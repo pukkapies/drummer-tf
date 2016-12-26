@@ -6,7 +6,7 @@ from tensorflow.python.ops.math_ops import tanh
 
 class SimpleLSTM(object):
 
-    def __init__(self, n_hidden, scope=None, lstm_activation=tanh):
+    def __init__(self, n_hidden, scope='SimpleLSTM', lstm_activation=tanh):
         """
         Sets up the LSTM model with an additional output filter to shape to size n_outputs
         :param input_placeholder: Placeholder tensor of shape (n_steps, batch_size, n_inputs)
@@ -27,34 +27,32 @@ class SimpleLSTM(object):
                             in which case the initial state is set to zero
         :return: outputs (shape is (n_steps, batch_size, n_outputs)), final state
         """
-        n_steps = input.get_shape()[0]
-        n_input = input.get_shape()[2]
-        print('n_steps', n_steps)
+        assert len(input.get_shape()) == 3
+        # n_steps = input.get_shape()[0]
+        # n_input = input.get_shape()[2]
+        # print('n_steps', n_steps)
+
+        # print('input shape:', input.get_shape())
 
         # Prepare data shape to match `rnn` function requirements
-        # Current data input shape: (batch_size, n_steps, n_input)
         # Required shape: 'n_steps' tensors list of shape (batch_size, n_input)
-
-        # # Permuting batch_size and n_steps
-        # x = tf.transpose(input, [1, 0, 2])
-        print('input shape:', input.get_shape())
-        # Reshaping to (n_steps*batch_size, n_input)
-        x = tf.reshape(input, tf.pack([-1, n_input])) # The pack is necessary because this is a mixed list of int and Tensor
-        print('x shape (post reshape):', x.get_shape())
-        # Split to get a list of 'n_steps' tensors of shape (batch_size, n_input)
-        x = tf.split(0, n_steps, x)
-        print('after splitting, x length and shape: ', [len(x), x[0].get_shape()])
-        print('state: ', init_state)
+        x = tf.unpack(input)
+        # print('after splitting, x length and shape: ', [len(x), x[0].get_shape()])
+        # print('state: ', init_state)
 
         # Get lstm cell output
         # NB outputs is a list of length n_steps of network outputs, state is just the final state
-        with tf.variable_scope(self.scope):
-            outputs, final_state = rnn.rnn(self.cell, x, initial_state=init_state, dtype=tf.float32)
-        print('outputs shape:', outputs[0].get_shape())
-        print('states shape:', final_state[0].get_shape()) # (batch_size, n_hidden) NB This has [0] because it is LSTMStateTuple
+        with tf.variable_scope(self.scope) as scope:
+            try:
+                outputs, final_state = rnn.rnn(self.cell, x, initial_state=init_state, dtype=tf.float32)
+            except ValueError:  # RNN was already initialised, so share variables
+                scope.reuse_variables()
+                outputs, final_state = rnn.rnn(self.cell, x, initial_state=init_state, dtype=tf.float32)
+        # print('outputs shape:', outputs[0].get_shape())
+        # print('states shape:', final_state[0].get_shape()) # (batch_size, n_hidden) NB This has [0] because it is LSTMStateTuple
 
         final_output = tf.pack(outputs)
-        print(final_output.get_shape())  # (num_steps, batch_size, n_hidden)
+        # print(final_output.get_shape())  # (num_steps, batch_size, n_hidden)
 
         return final_output, final_state
 
