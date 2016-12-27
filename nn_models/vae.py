@@ -121,6 +121,8 @@ class VAE():
 
         print("Defined training ops")
 
+        print([var._variable for var in tf.all_variables()])
+
         # ops to directly explore latent space
         # defaults to prior z ~ N(0, I)
         with tf.name_scope("latent_in"):
@@ -218,7 +220,7 @@ class VAE():
 
                 feed_dict = {self.x_in: x}
                 fetches = [self.x_reconstructed, self.cost, self.global_step, self.train_op]
-                x_reconstructed, cost, i, _ = self.sesh.run(fetches, feed_dict)
+                x_reconstructed, cost, i, _ = self.sesh.run(fetches, feed_dict=feed_dict)
 
                 err_train += cost
 
