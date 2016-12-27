@@ -10,6 +10,7 @@ import utils.vaeplot as vaeplot
 from utils.functionaltools import composeAll
 from nn_models.layers import Dense, FeedForward
 # from utils.utils import print_
+from tensorflow.python.ops.gradients import AggregationMethod
 
 
 class VAE():
@@ -43,11 +44,7 @@ class VAE():
         self.__dict__.update(VAE.DEFAULTS, **d_hyperparams)
         self.input_size = input_size
         self.latent_size = latent_size
-
-        config = tf.ConfigProto()
-        config.gpu_options.allocator_type = 'BFC'
-        
-        self.sesh = tf.Session(config=config)
+        self.sesh = tf.Session()
         self.dataset = dataset
         self.batch_size = self.dataset.minibatch_size
 
@@ -117,7 +114,9 @@ class VAE():
         with tf.name_scope("Adam_optimizer"):
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
             tvars = tf.trainable_variables()
-            grads_and_vars = optimizer.compute_gradients(cost, tvars)
+            # Set AggregationMethod to try to avoid crash when computing all gradients simultaneously
+            grads_and_vars = optimizer.compute_gradients(cost, tvars,
+                                                         aggregation_method=AggregationMethod.EXPERIMENTAL_TREE)
             clipped = [(tf.clip_by_value(grad, -5, 5), tvar) # gradient clipping
                     for grad, tvar in grads_and_vars]
             train_op = optimizer.apply_gradients(clipped, global_step=global_step,
