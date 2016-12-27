@@ -43,7 +43,11 @@ class VAE():
         self.__dict__.update(VAE.DEFAULTS, **d_hyperparams)
         self.input_size = input_size
         self.latent_size = latent_size
-        self.sesh = tf.Session()
+
+        config = tf.ConfigProto()
+        config.gpu_options.allocator_type = 'BFC'
+        
+        self.sesh = tf.Session(config=config)
         self.dataset = dataset
         self.batch_size = self.dataset.minibatch_size
 
