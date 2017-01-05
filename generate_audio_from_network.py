@@ -1,7 +1,7 @@
 import numpy as np
 import argparse
 from datetime import datetime
-from generation.generate_from_saved_model import main
+from generation.generate_from_lstm import main
 
 SAMPLES = 16000
 MODEL_FOLDER = './training/saved_models/'
