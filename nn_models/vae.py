@@ -26,35 +26,52 @@ class VAE():
     }
     RESTORE_KEY = "to_restore"
 
-    def __init__(self, encoder, decoder, input_size, input_placeholder, latent_size, dataset, d_hyperparams={},
-                 save_graph_def=True, log_dir="./log"):
+    def __init__(self, build_dict=None, d_hyperparams={},
+                 save_graph_def=True, log_dir="./log", model_to_restore=False):
         """(Re)build a symmetric VAE model with given:
-
-            * encoder (callable object that takes input tensor as argument and returns tensors z_mean, z_log_sigma
-
-            * decoder (callable object that takes z as input and returns reconstructed x)
-
-            *
-
+            * build_dict (if the model is being built new. The dict should contain the following keys:
+                * encoder (callable object that takes input tensor as argument and returns tensors z_mean, z_log_sigma
+                * decoder (callable object that takes z as input and returns reconstructed x)
+                * input_size (number of inputs at each time step)
+                * input_placeholder (placeholder object for inputs)
+                * latent_size (dimension of latent (z) space)
+                * dataset (DatasetFeed object for training)
             * hyperparameters (optional dictionary of updates to `DEFAULTS`)
+            * model_to_restore (filename of model to generate from (provide filename, without .meta)
         """
-        self.encoder = encoder
-        self.decoder = decoder
-        self.input_placeholder = input_placeholder
-        self.__dict__.update(VAE.DEFAULTS, **d_hyperparams)
-        self.input_size = input_size
-        self.latent_size = latent_size
         self.sesh = tf.Session()
-        self.dataset = dataset
-        self.batch_size = self.dataset.minibatch_size
+
+        if build_dict:
+            assert not model_to_restore
+            assert all(key in build_dict for key in ['encoder', 'decoder', 'input_size',
+                                                     'input_placeholder', 'latent_size', 'dataset'])
+            self.encoder = build_dict['encoder']
+            self.decoder = build_dict['decoder']
+            self.input_placeholder = build_dict['input_placeholder']
+            self.__dict__.update(VAE.DEFAULTS, **d_hyperparams)
+            self.input_size = build_dict['input_size']
+            self.latent_size = build_dict['latent_size']
+            self.dataset = build_dict['dataset']
+            self.batch_size = self.dataset.minibatch_size
+            # build graph
+            handles = self._buildGraph()
+            for handle in handles:
+                tf.add_to_collection(VAE.RESTORE_KEY, handle)
+            self.sesh.run(tf.initialize_all_variables())
+        elif model_to_restore:
+            assert not build_dict
+            model_datetime, model_name = os.path.basename(model_to_restore).split("_vae_")  # basename gives just the filename
+            self.datetime = "{}_reloaded".format(model_datetime)
+            *model_architecture, _ = re.split("_|-", model_name)
+            # rebuild graph
+            meta_graph = os.path.abspath(model_to_restore)
+            tf.train.import_meta_graph(meta_graph + ".meta").restore(
+                self.sesh, meta_graph)
+            handles = self.sesh.graph.get_collection(VAE.RESTORE_KEY)
+        else:
+            raise Exception("VAE must be initialised with either build_dict or model_to_restore")
 
         self.datetime = datetime.now().strftime(r"%y%m%d_%H%M")
-
-        # build graph
-        handles = self._buildGraph()
-        for handle in handles:
-            tf.add_to_collection(VAE.RESTORE_KEY, handle)
-        self.sesh.run(tf.initialize_all_variables())
 
         # unpack handles for tensor ops to feed or fetch
         (self.x_in, self.z_mean, self.z_log_sigma,

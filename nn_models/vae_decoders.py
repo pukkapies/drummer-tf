@@ -49,7 +49,7 @@ class LSTMDecoder(object):
         """
         Calls the LSTM decoder
         :param z: Tensor of shape (batch_size, latent_size)
-        :return: final_outputs: list of lenght n_steps of Tensor elements of shape (batch_size, n_hidden)
+        :return: final_outputs: Tensor  of shape (n_steps, batch_size, n_hidden)
         """
         # encoding / recognition model q(z|x)
         batch_size = z.get_shape()[0]

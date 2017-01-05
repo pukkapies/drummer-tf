@@ -5,9 +5,14 @@ from nn_models.vae_encoders import LSTMEncoder
 from nn_models.vae_decoders import LSTMDecoder
 from nn_models.vae import VAE
 import tensorflow as tf
+from utils.vectorisation_utils import create_json
 
 def main(args):
     loaded, json_vector_settings, analysis_type = load_from_dir_root(args.vector_folder)
+
+    model_folder = args.model_folder
+    if model_folder[-1] != '/':
+        model_folder += '/'
 
     batch_size = args.batch_size
     dataset = DatasetFeed(loaded, batch_size)
@@ -43,7 +48,16 @@ def main(args):
     input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size, n_input], name="x")
     print('input_placeholder shape: ', input_placeholder.get_shape())
 
-    vae = VAE(encoder, decoder, n_input, input_placeholder, latent_dim, dataset)
+    build_dict = {'encoder': encoder, 'decoder': decoder, 'n_input': n_input, 'input_placeholder': input_placeholder,
+                  'latent_dim': latent_dim, 'dataset': dataset}
+
+    vae = VAE(build_dict=build_dict)
+
+    create_json(model_folder + 'network_settings.json', json_settings)
 
     vae.train(max_iter=args.num_training_steps)
+    json_settings['epochs_completed'] = vae.dataset.epochs_completed
+    json_settings['cost'] = vae.cost
+
+    create_json(model_folder + 'network_settings.json', json_settings)
 

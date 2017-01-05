@@ -19,6 +19,7 @@ class DatasetFeed(object):
         self.current_dataset_index = 0
 
     def concatenate_npy_arrays(self, loaded_list):
+        """Concatenates each sublist corresponding to a single audio file into one numpy array block"""
         data = []
         for i in range(len(loaded_list)):
             data_block = np.hstack(loaded_list[i])

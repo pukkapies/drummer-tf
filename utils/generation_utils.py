@@ -112,7 +112,9 @@ class SineModelOutputProcessingWithActiveTracking(SineModelOutputProcessing):
 class STFTModelOutputProcessing(NetworkOutputProcessing):
     def check_network_output(self):
         self.n_freqs = (self.settings['stft_settings']['N'] // 2) + 1
-        assert self.result.shape[1] == 2 * self.n_freqs
+        assert self.result.shape[1] == 2 * self.n_freqs, "array passed in has shape[1] = {}, but 2*n_freqs = {}".format(
+            self.result.shape[1], 2*self.n_freqs
+        )
 
     def convert_network_output_to_analysis_model_input(self):
         print('<<<< CONVERTING NETWORK OUTPUT >>>>')
