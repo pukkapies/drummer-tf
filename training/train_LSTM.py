@@ -66,7 +66,7 @@ def main(args):
         lstm_outputs, _ = lstm(x, initial_states[i])  # lstm_outputs is Tensor of shape (n_steps, batch_size, n_hidden[i])
         lstm_outputs = tf.unpack(lstm_outputs)  # Make it into list length n_steps, each entry (batch_size, n_hidden[i])
         dense_fns.append(Dense(scope="LSTM_model/layer_{}".format(i + 1), size=n_outputs[i],
-                               nonlinearity=tf.sigmoid, initialiser=wbVars_Xavier))
+                               nonlinearity=tf.tanh, initialiser=wbVars_Xavier))
         x = [dense_fns[i](output) for output in lstm_outputs]
 
     pred = tf.pack(x)

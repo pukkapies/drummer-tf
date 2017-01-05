@@ -32,7 +32,7 @@ class FeedForwardDecoder(object):
 
 
 class LSTMDecoder(object):
-    def __init__(self, n_hidden, n_outputs, n_steps, output_activation=tf.sigmoid):
+    def __init__(self, n_hidden, n_outputs, n_steps, output_activation=tf.tanh):
         """
         Sets up an LSTM encode for the VAE
         :param n_hidden: Size of hidden layer of LSTM

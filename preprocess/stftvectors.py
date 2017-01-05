@@ -25,8 +25,8 @@ window = 'blackmanharris'
 # Anything below this will be snapped to the threshold (the idea is make the network learning easier)
 AMPLITUDE_THRESHOLD = -100
 
-mX_norm_range = [0.1, 0.9]
-pX_norm_range = [0.1, 0.9]
+mX_norm_range = [-0.9, 0.9]
+pX_norm_range = [-0.9, 0.9]
 
 w = window_dictionary.get(window, None)(M)
 
