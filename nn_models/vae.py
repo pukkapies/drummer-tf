@@ -22,7 +22,8 @@ class VAE():
     DEFAULTS = {
         "learning_rate": 1E-3,
         "dropout": 1.,
-        "lambda_l2_reg": 0.
+        "lambda_l2_reg": 0.,
+        "KL_loss_coeff": 1
     }
     RESTORE_KEY = "to_restore"
 
@@ -43,15 +44,19 @@ class VAE():
 
         if build_dict:
             assert not model_to_restore
-            assert all(key in build_dict for key in ['encoder', 'decoder', 'input_size',
-                                                     'input_placeholder', 'latent_size', 'dataset'])
+            print(build_dict)
+            assert 'dataset' in build_dict
+            assert all(key in build_dict for key in ['encoder', 'decoder', 'n_input',
+                                                     'input_placeholder', 'latent_dim',
+                                                     'dataset', 'model_folder'])
             self.encoder = build_dict['encoder']
             self.decoder = build_dict['decoder']
             self.input_placeholder = build_dict['input_placeholder']
             self.__dict__.update(VAE.DEFAULTS, **d_hyperparams)
-            self.input_size = build_dict['input_size']
-            self.latent_size = build_dict['latent_size']
+            self.n_input = build_dict['n_input']
+            self.latent_dim = build_dict['latent_dim']
             self.dataset = build_dict['dataset']
+            self.model_folder = build_dict['model_folder']
             self.batch_size = self.dataset.minibatch_size
             # build graph
             handles = self._buildGraph()
@@ -123,7 +128,7 @@ class VAE():
 
         with tf.name_scope("cost"):
             # average over minibatch
-            cost = tf.reduce_mean(rec_loss + kl_loss, name="vae_cost")
+            cost = tf.reduce_mean(rec_loss + self.KL_loss_coeff * kl_loss, name="vae_cost")
             cost += l2_reg
 
         # optimization
@@ -146,9 +151,9 @@ class VAE():
         # ops to directly explore latent space
         # defaults to prior z ~ N(0, I)
         with tf.name_scope("latent_in"):
-            z_ = tf.placeholder_with_default(tf.random_normal([1, self.latent_size]),
-                                            shape=[1, self.latent_size],
-                                            name="latent_in")
+            z_ = tf.placeholder_with_default(tf.random_normal([1, self.latent_dim]),
+                                             shape=[1, self.latent_dim],
+                                             name="latent_in")
         x_reconstructed_ = self.decoder(z_)
 
         return (x_in, z_mean, z_log_sigma, x_reconstructed,  # Removed dropout from second place
@@ -221,13 +226,14 @@ class VAE():
         return self.decode(self.sampleGaussian(*self.encode(x)))
 
     def train(self, max_iter=np.inf, max_epochs=np.inf, cross_validate=True,
-              verbose=True, save=True, outdir="./out", plots_outdir="./png",
+              verbose=True, save=True, plots_outdir="./png",
               plot_latent_over_time=False):
         print("inside training function")
         if save:
             saver = tf.train.Saver(tf.all_variables())
 
         try:
+            outdir = self.model_folder
             err_train = 0
             now = datetime.now().isoformat()[11:]
             print("------- Training begin: {} -------\n".format(now))
@@ -259,9 +265,9 @@ class VAE():
                     #                     outdir=plots_outdir)
 
                 if i % 500 == 0:
-                    outfile = os.path.join(os.path.abspath(outdir), "{}_vae_{}".format(
-                        self.datetime, "_".join(map(str, 'LSTM'))))
-                    saver.save(self.sesh, outfile, global_step=self.step)
+                    # outfile = os.path.join(os.path.abspath(outdir), "{}_vae_{}".format(
+                    #     self.datetime, "_".join(map(str, 'LSTM'))))
+                    saver.save(self.sesh, outdir + 'model', global_step=self.step)
 
                 if i >= max_iter or self.dataset.epochs_completed >= max_epochs:
                     print("final avg cost (@ step {} = epoch {}): {}".format(

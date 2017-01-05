@@ -24,9 +24,12 @@ def main(args):
     n_steps = data_shape[0]
     n_outputs = data_shape[1]
 
-    if not os.path.exists(args.model_folder):
+    if not os.path.exists(model_folder):
         print("Model folder does not exist, training new model.")
-        os.makedirs(args.model_folder)
+        os.makedirs(model_folder)
+    else:
+        print("Model folder exists. Resuming training not yet supported")
+        exit(1)
 
     latent_dim = args.latent_space_dimension
     n_hidden_encoder = args.lstm_encoder_hidden_units[0]  # Just one hidden layer for now
@@ -49,9 +52,9 @@ def main(args):
     print('input_placeholder shape: ', input_placeholder.get_shape())
 
     build_dict = {'encoder': encoder, 'decoder': decoder, 'n_input': n_input, 'input_placeholder': input_placeholder,
-                  'latent_dim': latent_dim, 'dataset': dataset}
+                  'latent_dim': latent_dim, 'dataset': dataset, 'model_folder': model_folder}
 
-    vae = VAE(build_dict=build_dict)
+    vae = VAE(build_dict=build_dict, d_hyperparams={'KL_loss_coeff': 0.})
 
     create_json(model_folder + 'network_settings.json', json_settings)
 

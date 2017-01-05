@@ -63,6 +63,8 @@ def get_arguments():
                         help='Number of hidden units in each LSTM decoder layer')
     parser.add_argument('--latent_space_dimension', default=2, type=int,
                          help='Dimension of the latent (z) space')
+    parser.add_argument('--KL_loss_coeff', default=1., type=float,
+                        help='Coefficient to multiply KL loss (1 is default)')
     parser.add_argument('--display_step', type=int, default=DISPLAY_STEP,
                         help='How often to display training progress and save model.')
     parser.add_argument('--grad_clip', type=float, default=5.,
