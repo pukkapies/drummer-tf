@@ -47,6 +47,8 @@ def composeAll(*args):
          composed(x) # == f(g(h(x)))
     """
     # adapted from https://docs.python.org/3.1/howto/functional.html
+    if len(args)==0:
+        return identity
     return partial(reduce, compose)(*args)
 
 def compose2(f, g): return lambda x: f(g(x))

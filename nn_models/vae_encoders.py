@@ -2,6 +2,7 @@ import tensorflow as tf
 from nn_models.layers import FeedForward, Dense
 from nn_models.rnn_models import SimpleLSTM
 from nn_models.initialisers import wbVars_Xavier
+from utils.functionaltools import composeAll
 
 
 class FeedForwardEncoder(object):
@@ -34,14 +35,17 @@ class FeedForwardEncoder(object):
 
 class LSTMEncoder(object):
 
-    def __init__(self, n_hidden, latent_size, initial_state=None):
+    def __init__(self, n_LSTM_hidden, prelatent_dense_layers, latent_size, initial_state=None):
         """
         Sets up an LSTM encode for the VAE
-        :param n_hidden: Size of hidden layer of LSTM
+        :param n_LSTM_hidden: Size of hidden layer of LSTM
+        :param prelatent_dense_layers: List of hidden layer sizes of dense layers feeding into latent mean/stdev
         :param latent_size: Size of latent space
         """
-        self.n_hidden = n_hidden
+        assert type(prelatent_dense_layers) == list
+        self.n_LSTM_hidden = n_LSTM_hidden
         self.latent_size = latent_size
+        self.prelatent_dense_layers = prelatent_dense_layers
         self.initial_state = initial_state
 
     def __call__(self, input):
@@ -57,10 +61,18 @@ class LSTMEncoder(object):
         # x = tf.unpack(input)  # List of length n_steps, each element is (batch_size, n_inputs)
         # n_steps = len(x)
         # print("After unpack, input has length {} and elements shape".format(len(x)), x[0].get_shape())
-        lstm_encoder = SimpleLSTM(self.n_hidden, scope='LSTM_encoder')
+        lstm_encoder = SimpleLSTM(self.n_LSTM_hidden, scope='LSTM_encoder')
         # outputs (shape is (n_steps, batch_size, n_outputs)), final state
         outputs, final_state = lstm_encoder(input, self.initial_state)
         outputs = tf.unpack(outputs)  # List of length n_steps
-        z_mean = Dense(scope="z_mean", size=self.latent_size, nonlinearity=tf.identity, initialiser=wbVars_Xavier)(outputs[-1])
-        z_log_sigma = Dense(scope="z_log_sigma", size=self.latent_size, nonlinearity=tf.identity, initialiser=wbVars_Xavier)(outputs[-1])
+
+        # Dense layers to feed into latent variable mean and standard deviation
+        prelatent_layers = [Dense(scope="prelatent_{}".format(i), size=hidden_size, nonlinearity=tf.tanh,
+                            initialiser=wbVars_Xavier) for i, hidden_size in enumerate(reversed(self.prelatent_dense_layers))]
+        z_mean_log_sigma_encoded = composeAll(prelatent_layers)(outputs[-1])
+
+        z_mean = Dense(scope="z_mean", size=self.latent_size, nonlinearity=tf.identity,
+                       initialiser=wbVars_Xavier)(z_mean_log_sigma_encoded)
+        z_log_sigma = Dense(scope="z_log_sigma", size=self.latent_size, nonlinearity=tf.identity,
+                            initialiser=wbVars_Xavier)(z_mean_log_sigma_encoded)
         return z_mean, z_log_sigma

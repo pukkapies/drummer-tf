@@ -3,6 +3,7 @@ from nn_models.layers import FeedForward, Dense
 from nn_models.rnn_models import SimpleLSTM
 from nn_models.initialisers import wbVars_Xavier
 from tensorflow.python.ops import variable_scope as vs
+from utils.functionaltools import composeAll
 
 
 class FeedForwardDecoder(object):
@@ -32,15 +33,16 @@ class FeedForwardDecoder(object):
 
 
 class LSTMDecoder(object):
-    def __init__(self, n_hidden, n_outputs, n_steps, output_activation=tf.tanh):
+    def __init__(self, n_LSTM_hidden, postlatent_dense_layers, n_outputs, n_steps, output_activation=tf.tanh):
         """
         Sets up an LSTM encode for the VAE
-        :param n_hidden: Size of hidden layer of LSTM
+        :param n_LSTM_hidden: Size of hidden layer of LSTM
         :param n_outputs: Size of inputs/outputs for each time step
         :param n_steps: int, number of steps to run the LSTM decoder
         :param output_activation: Activation function to apply to final LSTM output
         """
-        self.n_hidden = n_hidden
+        self.n_LSTM_hidden = n_LSTM_hidden
+        self.postlatent_dense_layers = postlatent_dense_layers
         self.n_outputs = n_outputs
         self.n_steps = n_steps
         self.output_activation = output_activation
@@ -54,15 +56,19 @@ class LSTMDecoder(object):
         # encoding / recognition model q(z|x)
         batch_size = z.get_shape()[0]
 
+        postlatent_layers = [Dense(scope="postlatent_{}".format(i), size=hidden_size, nonlinearity=tf.tanh,
+                                  initialiser=wbVars_Xavier) for i, hidden_size in enumerate(reversed(self.postlatent_dense_layers))]
+        initial_LSTM_states_encoded = composeAll(postlatent_layers)(z)
+
         # with tf.variable_scope('LSTM_decoder') as decoder_scope:
-        lstm_decoder = SimpleLSTM(self.n_hidden, scope="LSTM_decoder")
+        lstm_decoder = SimpleLSTM(self.n_LSTM_hidden, scope="LSTM_decoder")
         lstm_activation = lstm_decoder.lstm_activation
 
         # (Cell state, hidden state):
-        init_states = (Dense(scope="latent_to_LSTM_cell", size=self.n_hidden, nonlinearity=lstm_activation,
-                             initialiser=wbVars_Xavier)(z),
-                       Dense(scope="latent_to_LSTM_hidden", size=self.n_hidden, nonlinearity=lstm_activation,
-                             initialiser=wbVars_Xavier)(z))
+        init_states = (Dense(scope="latent_to_LSTM_cell", size=self.n_LSTM_hidden, nonlinearity=lstm_activation,
+                             initialiser=wbVars_Xavier)(initial_LSTM_states_encoded),
+                       Dense(scope="latent_to_LSTM_hidden", size=self.n_LSTM_hidden, nonlinearity=lstm_activation,
+                             initialiser=wbVars_Xavier)(initial_LSTM_states_encoded))
 
         # input = tf.placeholder(tf.float32, shape=[1, batch_size, self.n_outputs])  # (n_steps, batch_size, n_inputs)
         # states = (tf.placeholder(tf.float32, shape=[batch_size, self.n_hidden]),

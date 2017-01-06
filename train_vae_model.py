@@ -59,8 +59,12 @@ def get_arguments():
                         help='Learning rate list for training.')
     parser.add_argument('--lstm_encoder_hidden_units', default=N_HIDDEN, type=int, nargs='+',
                         help='Number of hidden units in each LSTM encoder layer')
+    parser.add_argument('--prelatent_dense_layers', default=[], type=list,
+                        help='List of hidden layer sizes to feed into latent mean/stdev')
     parser.add_argument('--lstm_decoder_hidden_units', default=N_HIDDEN, type=int, nargs='+',
-                        help='Number of hidden units in each LSTM decoder layer')
+                        help='Numbers of hidden units in each LSTM decoder layer')
+    parser.add_argument('--postlatent_dense_layers', default=[], type=list,
+                        help='Numbers of hidden units to feed into cell and hidden states of decoder')
     parser.add_argument('--latent_space_dimension', default=2, type=int,
                          help='Dimension of the latent (z) space')
     parser.add_argument('--KL_loss_coeff', default=1., type=float,

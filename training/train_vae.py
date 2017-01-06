@@ -33,10 +33,12 @@ def main(args):
 
     latent_dim = args.latent_space_dimension
     n_hidden_encoder = args.lstm_encoder_hidden_units[0]  # Just one hidden layer for now
+    prelatent_dense_layers = args.prelatent_dense_layers
     n_hidden_decoder = args.lstm_decoder_hidden_units[0]
+    postlatent_dense_layers = args.postlatent_dense_layers
 
-    encoder = LSTMEncoder(n_hidden_encoder, latent_dim)
-    decoder = LSTMDecoder(n_hidden_decoder, n_outputs, n_steps, output_activation=tf.sigmoid)
+    encoder = LSTMEncoder(n_hidden_encoder, prelatent_dense_layers, latent_dim)
+    decoder = LSTMDecoder(n_hidden_decoder, postlatent_dense_layers, n_outputs, n_steps, output_activation=tf.sigmoid)
 
     n_input = n_outputs
 
