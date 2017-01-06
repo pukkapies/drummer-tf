@@ -46,7 +46,8 @@ def main(args):
                      'n_inputs': n_input,
                      'n_steps': n_steps,
                      analysis_type + '_settings': json_vector_settings,
-                     'analysis_type': analysis_type}
+                     'analysis_type': analysis_type,
+                     'latent_dim': latent_dim}
 
     input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size, n_input], name="x")
     print('input_placeholder shape: ', input_placeholder.get_shape())
