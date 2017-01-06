@@ -91,6 +91,14 @@ class VAE():
         """Train step"""
         return self.global_step.eval(session=self.sesh)
 
+    def save_model(self, outdir):
+        """Saves the model if a self.saver object exists"""
+        try:
+            outfile = outdir + 'model'
+            self.saver.save(self.sesh, outfile, global_step=self.step)
+        except AttributeError:
+            return
+
     def _buildGraph(self):
         x_in = self.input_placeholder
 
@@ -230,7 +238,7 @@ class VAE():
               plot_latent_over_time=False):
         print("inside training function")
         if save:
-            saver = tf.train.Saver(tf.all_variables())
+            self.saver = tf.train.Saver(tf.all_variables())
 
         try:
             outdir = self.model_folder
@@ -265,9 +273,7 @@ class VAE():
                     #                     outdir=plots_outdir)
 
                 if i % 500 == 0:
-                    # outfile = os.path.join(os.path.abspath(outdir), "{}_vae_{}".format(
-                    #     self.datetime, "_".join(map(str, 'LSTM'))))
-                    saver.save(self.sesh, outdir + 'model', global_step=self.step)
+                    self.save_model(outdir)
 
                 if i >= max_iter or self.dataset.epochs_completed >= max_epochs:
                     print("final avg cost (@ step {} = epoch {}): {}".format(
@@ -275,10 +281,7 @@ class VAE():
                     now = datetime.now().isoformat()[11:]
                     print("------- Training end: {} -------\n".format(now))
 
-                    if save:
-                        outfile = os.path.join(os.path.abspath(outdir), "{}_vae_{}".format(
-                            self.datetime, "_".join(map(str, 'LSTM'))))
-                        saver.save(self.sesh, outfile, global_step=self.step)
+                    self.save_model(outdir)
                     try:
                         self.logger.flush()
                         self.logger.close()
@@ -290,6 +293,6 @@ class VAE():
             print("final avg cost (@ step {} = epoch {}): {}".format(
                 i, self.dataset.epochs_completed, err_train / i))
             now = datetime.now().isoformat()[11:]
+            self.save_model(outdir)
             print("------- Training end: {} -------\n".format(now))
-            sys.exit(0)
 
