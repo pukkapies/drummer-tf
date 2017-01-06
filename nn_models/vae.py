@@ -255,12 +255,13 @@ class VAE():
                 x_reconstructed, cost, kl_loss, rec_loss, i, _ = self.sesh.run(fetches, feed_dict=feed_dict)
 
 
-
                 err_train += cost
+                self.evaluated_average_cost = err_train
 
                 if i%10 == 0 and verbose:
                     print("Step {}-> avg total cost: {}".format(i, err_train / i))
-                    print("   minibatch KL_cost = {}, reconst = {}".format(kl_loss, rec_loss))
+                    print("   minibatch KL_cost = {}, reconst = {}".format(np.mean(kl_loss),
+                                                                           np.mean(rec_loss)))
 
                 # if i%2000 == 0 and verbose:# and i >= 10000:
                     # if cross_validate:
