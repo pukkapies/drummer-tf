@@ -81,7 +81,7 @@ class VAE():
         # unpack handles for tensor ops to feed or fetch
         (self.x_in, self.z_mean, self.z_log_sigma,
          self.x_reconstructed, self.z_, self.x_reconstructed_,
-         self.cost, self.global_step, self.train_op) = handles
+         (self.cost, self.kl_loss, self.rec_loss, self.l2_reg), self.global_step, self.train_op) = handles
 
         if save_graph_def: # tensorboard
             self.logger = tf.train.SummaryWriter(log_dir, self.sesh.graph)
@@ -118,11 +118,11 @@ class VAE():
         # reconstruction loss: mismatch b/w x & x_reconstructed
         # binary cross-entropy -- assumes x & p(x|z) are iid Bernoullis
 
-        print('x_reconstructed shape: ', x_reconstructed.get_shape())
-        print('x_in shape: ', x_in.get_shape())
+        print('x_reconstructed shape: ', x_reconstructed.get_shape())  # (n_steps, batch_size, n_outputs)
+        print('x_in shape: ', x_in.get_shape())  # (n_steps, batch_size, n_outputs)
 
         # rec_loss = VAE.crossEntropy(x_reconstructed, x_in)
-        rec_loss = tf.reduce_mean((x_reconstructed - x_in)**2)
+        rec_loss = tf.reduce_mean((x_reconstructed - x_in)**2, reduction_indices=[0, 2])  # Reduce everything but the batch_size
 
         # Kullback-Leibler divergence: mismatch b/w approximate vs. imposed/true posterior
         kl_loss = VAE.kullbackLeibler(z_mean, z_log_sigma)
@@ -165,7 +165,7 @@ class VAE():
         x_reconstructed_ = self.decoder(z_)
 
         return (x_in, z_mean, z_log_sigma, x_reconstructed,  # Removed dropout from second place
-                z_, x_reconstructed_, cost, global_step, train_op)
+                z_, x_reconstructed_, (cost, kl_loss, rec_loss, l2_reg), global_step, train_op)
 
     def sampleGaussian(self, mu, log_sigma):
         """(Differentiably!) draw sample from Gaussian with given shape, subject to random noise epsilon"""
@@ -248,18 +248,19 @@ class VAE():
 
             while True:
                 x = self.dataset.next_batch()  # (batch_size, n_steps, n_inputs)
-                print("Next data batch shape: ", x.shape)
                 x = np.transpose(x, [1, 0, 2])  # (n_steps, batch_size, n_inputs)
-                print("After transposing: ", x.shape)
 
                 feed_dict = {self.x_in: x}
-                fetches = [self.x_reconstructed, self.cost, self.global_step, self.train_op]
-                x_reconstructed, cost, i, _ = self.sesh.run(fetches, feed_dict=feed_dict)
+                fetches = [self.x_reconstructed, self.cost, self.kl_loss, self.rec_loss, self.global_step, self.train_op]
+                x_reconstructed, cost, kl_loss, rec_loss, i, _ = self.sesh.run(fetches, feed_dict=feed_dict)
+
+
 
                 err_train += cost
 
                 if i%10 == 0 and verbose:
-                    print("round {} --> avg cost: ".format(i), err_train / i)
+                    print("Step {}-> avg total cost: {}".format(i, err_train / i))
+                    print("   minibatch KL_cost = {}, reconst = {}".format(kl_loss, rec_loss))
 
                 # if i%2000 == 0 and verbose:# and i >= 10000:
                     # if cross_validate:
