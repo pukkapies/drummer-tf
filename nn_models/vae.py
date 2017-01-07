@@ -81,7 +81,7 @@ class VAE():
         # unpack handles for tensor ops to feed or fetch
         (self.x_in, self.z_mean, self.z_log_sigma,
          self.x_reconstructed, self.z_, self.x_reconstructed_,
-         (self.cost, self.kl_loss, self.rec_loss, self.l2_reg), self.global_step, self.train_op) = handles
+         self.cost, self.kl_loss, self.rec_loss, self.l2_reg, self.global_step, self.train_op) = handles
 
         if save_graph_def: # tensorboard
             self.logger = tf.train.SummaryWriter(log_dir, self.sesh.graph)
@@ -165,7 +165,7 @@ class VAE():
         x_reconstructed_ = self.decoder(z_)
 
         return (x_in, z_mean, z_log_sigma, x_reconstructed,  # Removed dropout from second place
-                z_, x_reconstructed_, (cost, kl_loss, rec_loss, l2_reg), global_step, train_op)
+                z_, x_reconstructed_, cost, kl_loss, rec_loss, l2_reg, global_step, train_op)
 
     def sampleGaussian(self, mu, log_sigma):
         """(Differentiably!) draw sample from Gaussian with given shape, subject to random noise epsilon"""
@@ -233,20 +233,20 @@ class VAE():
         # np.array -> np.array
         return self.decode(self.sampleGaussian(*self.encode(x)))
 
-    def train(self, max_iter=np.inf, max_epochs=np.inf, cross_validate=True,
+    def train(self, max_iter=np.inf, max_epochs=np.inf,
               verbose=True, save=True, plots_outdir="./png",
               plot_latent_over_time=False):
         print("inside training function")
         if save:
             self.saver = tf.train.Saver(tf.all_variables())
 
-        try:
-            outdir = self.model_folder
-            err_train = 0
-            now = datetime.now().isoformat()[11:]
-            print("------- Training begin: {} -------\n".format(now))
+        outdir = self.model_folder
+        self.accumulated_cost = 0
+        now = datetime.now().isoformat()[11:]
+        print("------- Training begin: {} -------\n".format(now))
 
-            while True:
+        while True:
+            try:
                 x = self.dataset.next_batch()  # (batch_size, n_steps, n_inputs)
                 x = np.transpose(x, [1, 0, 2])  # (n_steps, batch_size, n_inputs)
 
@@ -254,32 +254,18 @@ class VAE():
                 fetches = [self.x_reconstructed, self.cost, self.kl_loss, self.rec_loss, self.global_step, self.train_op]
                 x_reconstructed, cost, kl_loss, rec_loss, i, _ = self.sesh.run(fetches, feed_dict=feed_dict)
 
-
-                err_train += cost
-                self.evaluated_average_cost = err_train
+                self.accumulated_cost += cost
 
                 if i%10 == 0 and verbose:
-                    print("Step {}-> avg total cost: {}".format(i, err_train / i))
+                    print("Step {}-> avg total cost: {}, cost for this minibatch: {}".format(i, self.accumulated_cost / i, cost))
                     print("   minibatch KL_cost = {}, reconst = {}".format(np.mean(kl_loss),
                                                                            np.mean(rec_loss)))
-
-                # if i%2000 == 0 and verbose:# and i >= 10000:
-                    # if cross_validate:
-                    #     x, _ = X.validation.next_batch(self.batch_size)
-                    #     feed_dict = {self.x_in: x}
-                    #     fetches = [self.x_reconstructed, self.cost]
-                    #     x_reconstructed, cost = self.sesh.run(fetches, feed_dict)
-                    #
-                    #     print("round {} --> CV cost: ".format(i), cost)
-                    #     vaeplot.plotSubset(self, x, x_reconstructed, n=10, name="cv",
-                    #                     outdir=plots_outdir)
-
                 if i % 500 == 0:
                     self.save_model(outdir)
 
                 if i >= max_iter or self.dataset.epochs_completed >= max_epochs:
                     print("final avg cost (@ step {} = epoch {}): {}".format(
-                        i, self.dataset.epochs_completed, err_train / i))
+                        i, self.dataset.epochs_completed, self.accumulated_cost / i))
                     now = datetime.now().isoformat()[11:]
                     print("------- Training end: {} -------\n".format(now))
 
@@ -288,13 +274,31 @@ class VAE():
                         self.logger.flush()
                         self.logger.close()
                     except(AttributeError): # not logging
-                        continue
-                    break
+                        pass
+                    return cost
 
-        except(KeyboardInterrupt):
-            print("final avg cost (@ step {} = epoch {}): {}".format(
-                i, self.dataset.epochs_completed, err_train / i))
-            now = datetime.now().isoformat()[11:]
-            self.save_model(outdir)
-            print("------- Training end: {} -------\n".format(now))
-
+            except(KeyboardInterrupt):
+                print("Training temporarily paused, enter an option:")
+                print("1 - Terminate training")
+                print("2 - Change learning rate (current is {})".format(self.learning_rate))
+                print("3 - Change KL coeff (current is {})".format(self.KL_loss_coeff))
+                option = None
+                while not option in [1, 2, 3]:
+                    option = input()
+                    if option == 1:
+                        print("final avg cost (@ step {} = epoch {}): {}".format(
+                            i, self.dataset.epochs_completed, self.accumulated_cost / i))
+                        now = datetime.now().isoformat()[11:]
+                        self.save_model(outdir)
+                        print("------- Training end: {} -------\n".format(now))
+                        return cost
+                    elif option == 2:
+                        new_learning_rate = None
+                        while not type(new_learning_rate) == float:
+                            new_learning_rate = input("Enter new learning rate: ")
+                        self.learning_rate = new_learning_rate
+                    elif option == 3:
+                        new_kl_coeff = None
+                        while not type(new_kl_coeff) == float:
+                            new_kl_coeff = input("Enter new KL coeff: ")
+                        self.KL_loss_coeff = new_kl_coeff

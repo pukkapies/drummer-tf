@@ -44,6 +44,8 @@ def main(args):
 
     json_settings = {'n_hidden_encoder': n_hidden_encoder,
                      'n_hidden_decoder': n_hidden_decoder,
+                     'prelatent_dense_layers': prelatent_dense_layers,
+                     'poslatent_dense_layers': postlatent_dense_layers,
                      'n_outputs': n_outputs,
                      'n_inputs': n_input,
                      'n_steps': n_steps,
@@ -61,9 +63,9 @@ def main(args):
 
     create_json(model_folder + 'network_settings.json', json_settings)
 
-    vae.train(max_iter=args.num_training_steps)
+    cost = vae.train(max_iter=args.num_training_steps)
     json_settings['epochs_completed'] = vae.dataset.epochs_completed
-    json_settings['cost'] = float(vae.evaluated_average_cost)
+    json_settings['cost'] = float(cost)
 
     create_json(model_folder + 'network_settings.json', json_settings)
 
