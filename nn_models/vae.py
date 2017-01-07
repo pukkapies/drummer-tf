@@ -283,21 +283,21 @@ class VAE():
                 print("2 - Change learning rate (current is {})".format(self.learning_rate))
                 print("3 - Change KL coeff (current is {})".format(self.KL_loss_coeff))
                 option = None
-                while not option in [1, 2, 3]:
+                while not option in ['1', '2', '3']:
                     option = input()
-                    if option == 1:
+                    if option == '1':
                         print("final avg cost (@ step {} = epoch {}): {}".format(
                             i, self.dataset.epochs_completed, self.accumulated_cost / i))
                         now = datetime.now().isoformat()[11:]
                         self.save_model(outdir)
                         print("------- Training end: {} -------\n".format(now))
                         return cost
-                    elif option == 2:
+                    elif option == '2':
                         new_learning_rate = None
                         while not type(new_learning_rate) == float:
                             new_learning_rate = input("Enter new learning rate: ")
                         self.learning_rate = new_learning_rate
-                    elif option == 3:
+                    elif option == '3':
                         new_kl_coeff = None
                         while not type(new_kl_coeff) == float:
                             new_kl_coeff = input("Enter new KL coeff: ")
