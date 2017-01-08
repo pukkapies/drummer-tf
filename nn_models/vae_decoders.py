@@ -63,7 +63,7 @@ class LSTMDecoder(object):
         # with tf.variable_scope('LSTM_decoder') as decoder_scope:
         lstm_decoder = SimpleLSTM(self.n_LSTM_hidden, scope="LSTM_decoder",
                        initializer = tf.contrib.layers.xavier_initializer())
-        
+
         lstm_activation = lstm_decoder.lstm_activation
 
         # (Cell state, hidden state):
