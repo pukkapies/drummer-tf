@@ -6,7 +6,7 @@ from tensorflow.python.ops.math_ops import tanh
 
 class SimpleLSTM(object):
 
-    def __init__(self, n_hidden, scope='SimpleLSTM', lstm_activation=tanh):
+    def __init__(self, n_hidden, scope='SimpleLSTM', lstm_activation=tanh, initializer=None):
         """
         Sets up the LSTM model with an additional output filter to shape to size n_outputs
         :param input_placeholder: Placeholder tensor of shape (n_steps, batch_size, n_inputs)
@@ -18,6 +18,7 @@ class SimpleLSTM(object):
         self.cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0, activation=lstm_activation)
         self.scope = scope
         self.lstm_activation = lstm_activation
+        self.initializer = initializer
 
     def __call__(self, input, init_state):
         """
@@ -42,7 +43,7 @@ class SimpleLSTM(object):
 
         # Get lstm cell output
         # NB outputs is a list of length n_steps of network outputs, state is just the final state
-        with tf.variable_scope(self.scope) as scope:
+        with tf.variable_scope(self.scope, initializer=self.initializer) as scope:
             try:
                 outputs, final_state = rnn.rnn(self.cell, x, initial_state=init_state, dtype=tf.float32)
             except ValueError:  # RNN was already initialised, so share variables

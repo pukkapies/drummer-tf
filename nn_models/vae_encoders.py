@@ -61,7 +61,8 @@ class LSTMEncoder(object):
         # x = tf.unpack(input)  # List of length n_steps, each element is (batch_size, n_inputs)
         # n_steps = len(x)
         # print("After unpack, input has length {} and elements shape".format(len(x)), x[0].get_shape())
-        lstm_encoder = SimpleLSTM(self.n_LSTM_hidden, scope='LSTM_encoder')
+        lstm_encoder = SimpleLSTM(self.n_LSTM_hidden, scope='LSTM_encoder',
+                                  initializer=tf.contrib.layers.xavier_initializer())
         # outputs (shape is (n_steps, batch_size, n_outputs)), final state
         outputs, final_state = lstm_encoder(input, self.initial_state)
         outputs = tf.unpack(outputs)  # List of length n_steps
