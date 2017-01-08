@@ -1,6 +1,6 @@
 import tensorflow as tf
 from nn_models.layers import FeedForward, Dense
-from nn_models.rnn_models import SimpleLSTM
+from nn_models.lstm import SimpleLSTM
 from nn_models.initialisers import wbVars_Xavier
 from tensorflow.python.ops import variable_scope as vs
 from utils.functionaltools import composeAll

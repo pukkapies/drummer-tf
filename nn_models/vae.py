@@ -234,9 +234,7 @@ class VAE():
         return self.decode(self.sampleGaussian(*self.encode(x)))
 
     def train(self, max_iter=np.inf, max_epochs=np.inf,
-              verbose=True, save=True, plots_outdir="./png",
-              plot_latent_over_time=False):
-        print("inside training function")
+              verbose=True, save=True):
         if save:
             self.saver = tf.train.Saver(tf.all_variables())
 
@@ -278,7 +276,7 @@ class VAE():
                     return cost
 
             except(KeyboardInterrupt):
-                print("Training temporarily paused, enter an option:")
+                print("\nTraining temporarily paused, enter an option:")
                 print("1 - Terminate training")
                 print("2 - Change learning rate (current is {})".format(self.learning_rate))
                 print("3 - Change KL coeff (current is {})".format(self.KL_loss_coeff))

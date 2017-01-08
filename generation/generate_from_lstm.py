@@ -8,7 +8,7 @@ from models.utilFunctions import nextbiggestpower2, window_dictionary
 from models.sineModel import sineModelSynth
 from models.stft import stftSynth, stftAnal
 import soundfile
-from nn_models.rnn_models import SimpleLSTM
+from nn_models.lstm import SimpleLSTM
 from datetime import datetime
 from utils.utils import load_saved_model_to_resume_training
 from utils.generation_utils import SineModelOutputProcessing, SineModelOutputProcessingWithActiveTracking

@@ -5,7 +5,7 @@ import tensorflow as tf
 import json
 import time
 import os
-from nn_models.rnn_models import SimpleLSTM
+from nn_models.lstm import SimpleLSTM
 from .setup.setup_data import setup_training_data
 from utils.training_utils import Patience
 from utils.utils import load_saved_model_to_resume_training
