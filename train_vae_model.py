@@ -47,10 +47,7 @@ def get_arguments():
                         '(execution time, memory consumption) for use with '
                         'TensorBoard.')
     parser.add_argument('--model_folder', type=str, default=None,
-                        help='Directory in which to restore the model from. '
-                        'This creates the new model under the dated directory '
-                        'in --logdir_root. '
-                        'Cannot use with --logdir.')
+                        help='Directory in which to store/restore the model')
     parser.add_argument('--checkpoint_every', type=int, default=CHECKPOINT_EVERY,
                         help='How many steps to save each checkpoint after')
     parser.add_argument('--num_training_steps', type=int, default=NUM_TRAINING_STEPS,

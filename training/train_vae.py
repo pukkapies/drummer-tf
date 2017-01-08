@@ -14,6 +14,8 @@ def main(args):
     if model_folder[-1] != '/':
         model_folder += '/'
 
+    log_dir = model_folder + 'log/'  # For tensorboard
+
     batch_size = args.batch_size
     dataset = DatasetFeed(loaded, batch_size)
 
@@ -59,7 +61,7 @@ def main(args):
     build_dict = {'encoder': encoder, 'decoder': decoder, 'n_input': n_input, 'input_placeholder': input_placeholder,
                   'latent_dim': latent_dim, 'dataset': dataset, 'model_folder': model_folder}
 
-    vae = VAE(build_dict=build_dict, d_hyperparams={'KL_loss_coeff': 0.})
+    vae = VAE(build_dict=build_dict, d_hyperparams={'KL_loss_coeff': 0.}, log_dir=log_dir)
 
     create_json(model_folder + 'network_settings.json', json_settings)
 

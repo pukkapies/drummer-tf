@@ -37,7 +37,7 @@ class VAE():
                 * input_placeholder (placeholder object for inputs)
                 * latent_size (dimension of latent (z) space)
                 * dataset (DatasetFeed object for training)
-            * hyperparameters (optional dictionary of updates to `DEFAULTS`)
+            * d_hyperparameters (optional dictionary of updates to `DEFAULTS`)
             * model_to_restore (filename of model to generate from (provide filename, without .meta)
         """
         self.sesh = tf.Session()
