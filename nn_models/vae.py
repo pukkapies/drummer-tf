@@ -27,7 +27,7 @@ class VAE():
     }
     RESTORE_KEY = "to_restore"
 
-    def __init__(self, build_dict=None, d_hyperparams={},
+    def __init__(self, build_dict=None, d_hyperparams={}, scope='VAE',
                  save_graph_def=True, log_dir="./log", model_to_restore=False):
         """(Re)build a symmetric VAE model with given:
             * build_dict (if the model is being built new. The dict should contain the following keys:
@@ -52,6 +52,7 @@ class VAE():
             self.encoder = build_dict['encoder']
             self.decoder = build_dict['decoder']
             self.input_placeholder = build_dict['input_placeholder']
+            self.shifted_input_placeholder = build_dict['shifted_input_placeholder']
             self.__dict__.update(VAE.DEFAULTS, **d_hyperparams)
             self.n_input = build_dict['n_input']
             self.latent_dim = build_dict['latent_dim']
@@ -59,6 +60,7 @@ class VAE():
             self.model_folder = build_dict['model_folder']
             self.batch_size = self.dataset.minibatch_size
             # build graph
+            self.scope = scope
             handles = self._buildGraph()
             for handle in handles:
                 tf.add_to_collection(VAE.RESTORE_KEY, handle)
@@ -79,8 +81,7 @@ class VAE():
         self.datetime = datetime.now().strftime(r"%y%m%d_%H%M")
 
         # unpack handles for tensor ops to feed or fetch
-        (self.x_in, self.z_mean, self.z_log_sigma,
-         self.x_reconstructed, self.z_, self.x_reconstructed_,
+        (self.z_mean, self.z_log_sigma, self.x_reconstructed, self.z_, self.x_reconstructed_,
          self.cost, self.kl_loss, self.rec_loss, self.l2_reg, self.global_step, self.train_op) = handles
 
         if save_graph_def: # tensorboard
@@ -100,72 +101,79 @@ class VAE():
             return
 
     def _buildGraph(self):
-        x_in = self.input_placeholder
+        with tf.variable_scope(self.scope) as graph_scope:
+            x_in = self.input_placeholder
+            x_shifted = self.shifted_input_placeholder
 
-        z_mean, z_log_sigma = self.encoder(x_in)
+            z_mean, z_log_sigma = self.encoder(x_in)
 
-        print('z_mean shape: ', z_mean.get_shape())
-        print('z_log_sigma shape: ', z_log_sigma.get_shape())
+            print("Finished setting up encoder")
+            print([var._variable for var in tf.all_variables()])
 
-        # kingma & welling: only 1 draw necessary as long as minibatch large enough (>100)
-        z = self.sampleGaussian(z_mean, z_log_sigma)
+            print('z_mean shape: ', z_mean.get_shape())
+            print('z_log_sigma shape: ', z_log_sigma.get_shape())
 
-        # decoding / "generative": p(x|z)
-        x_reconstructed = self.decoder(z)
+            # kingma & welling: only 1 draw necessary as long as minibatch large enough (>100)
+            z = self.sampleGaussian(z_mean, z_log_sigma)
 
-        print([var._variable for var in tf.all_variables()])
+            # decoding / "generative": p(x|z)
+            x_reconstructed = self.decoder(z, inputs=x_shifted)  # Feed the ground truth to the decoder
 
-        # reconstruction loss: mismatch b/w x & x_reconstructed
-        # binary cross-entropy -- assumes x & p(x|z) are iid Bernoullis
+            print("Finished setting up decoder")
+            print([var._variable for var in tf.all_variables()])
 
-        print('x_reconstructed shape: ', x_reconstructed.get_shape())  # (n_steps, batch_size, n_outputs)
-        print('x_in shape: ', x_in.get_shape())  # (n_steps, batch_size, n_outputs)
+            # reconstruction loss: mismatch b/w x & x_reconstructed
+            # binary cross-entropy -- assumes x & p(x|z) are iid Bernoullis
 
-        # rec_loss = VAE.crossEntropy(x_reconstructed, x_in)
-        rec_loss = tf.reduce_mean((x_reconstructed - x_in)**2, reduction_indices=[0, 2])  # Reduce everything but the batch_size
+            print('x_reconstructed shape: ', x_reconstructed.get_shape())  # (n_steps, batch_size, n_outputs)
+            print('x_in shape: ', x_in.get_shape())  # (n_steps, batch_size, n_outputs)
 
-        # Kullback-Leibler divergence: mismatch b/w approximate vs. imposed/true posterior
-        kl_loss = VAE.kullbackLeibler(z_mean, z_log_sigma)
+            # rec_loss = VAE.crossEntropy(x_reconstructed, x_in)
+            rec_loss = tf.reduce_mean((x_reconstructed - x_in)**2, reduction_indices=[0, 2])  # Reduce everything but the batch_size
 
-        print("Defined loss functions")
+            # Kullback-Leibler divergence: mismatch b/w approximate vs. imposed/true posterior
+            kl_loss = VAE.kullbackLeibler(z_mean, z_log_sigma)
 
-        with tf.name_scope("l2_regularization"):
-            regularizers = [tf.nn.l2_loss(var) for var in self.sesh.graph.get_collection(
-                "trainable_variables") if "weights" in var.name]
-            l2_reg = self.lambda_l2_reg * tf.add_n(regularizers)
+            with tf.name_scope("l2_regularization"):
+                regularizers = [tf.nn.l2_loss(var) for var in self.sesh.graph.get_collection(
+                    "trainable_variables") if "weights" in var.name]
+                l2_reg = self.lambda_l2_reg * tf.add_n(regularizers)
 
-        with tf.name_scope("cost"):
-            # average over minibatch
-            cost = tf.reduce_mean(rec_loss + self.KL_loss_coeff * kl_loss, name="vae_cost")
-            cost += l2_reg
+            with tf.name_scope("cost"):
+                # average over minibatch
+                cost = tf.reduce_mean(rec_loss + self.KL_loss_coeff * kl_loss, name="vae_cost")
+                cost += l2_reg
 
-        # optimization
-        global_step = tf.Variable(0, trainable=False)
-        with tf.name_scope("Adam_optimizer"):
-            optimizer = tf.train.AdamOptimizer(self.learning_rate)
-            tvars = tf.trainable_variables()
-            # Set AggregationMethod to try to avoid crash when computing all gradients simultaneously
-            grads_and_vars = optimizer.compute_gradients(cost, tvars,
-                                                         aggregation_method=AggregationMethod.EXPERIMENTAL_TREE)
-            clipped = [(tf.clip_by_value(grad, -5, 5), tvar) # gradient clipping
-                    for grad, tvar in grads_and_vars]
-            train_op = optimizer.apply_gradients(clipped, global_step=global_step,
-                                                 name="minimize_cost")
+            print("Defined loss functions")
 
-        print("Defined training ops")
+            # optimization
+            global_step = tf.Variable(0, trainable=False)
+            with tf.name_scope("Adam_optimizer"):
+                optimizer = tf.train.AdamOptimizer(self.learning_rate)
+                tvars = tf.trainable_variables()
+                # Set AggregationMethod to try to avoid crash when computing all gradients simultaneously
+                grads_and_vars = optimizer.compute_gradients(cost, tvars,
+                                                             aggregation_method=AggregationMethod.EXPERIMENTAL_TREE)
+                clipped = [(tf.clip_by_value(grad, -5, 5), tvar) # gradient clipping
+                        for grad, tvar in grads_and_vars]
+                train_op = optimizer.apply_gradients(clipped, global_step=global_step,
+                                                     name="minimize_cost")
 
-        print([var._variable for var in tf.all_variables()])
+            print("Defined training ops")
 
-        # ops to directly explore latent space
-        # defaults to prior z ~ N(0, I)
-        with tf.name_scope("latent_in"):
-            z_ = tf.placeholder_with_default(tf.random_normal([1, self.latent_dim]),
-                                             shape=[1, self.latent_dim],
-                                             name="latent_in")
-        x_reconstructed_ = self.decoder(z_)
+            print([var._variable for var in tf.all_variables()])
 
-        return (x_in, z_mean, z_log_sigma, x_reconstructed,  # Removed dropout from second place
-                z_, x_reconstructed_, cost, kl_loss, rec_loss, l2_reg, global_step, train_op)
+            # ops to directly explore latent space
+            # defaults to prior z ~ N(0, I)
+            with tf.name_scope("latent_in"):
+                z_ = tf.placeholder_with_default(tf.random_normal([1, self.latent_dim]),
+                                                 shape=[1, self.latent_dim],
+                                                 name="latent_in")
+            graph_scope.reuse_variables()  # No new variables should be created from this point on
+            x_reconstructed_ = self.decoder(z_)
+
+            return (z_mean, z_log_sigma, x_reconstructed,  # Removed dropout from second place
+                    z_, x_reconstructed_, cost, kl_loss, rec_loss, l2_reg, global_step, train_op)
 
     def sampleGaussian(self, mu, log_sigma):
         """(Differentiably!) draw sample from Gaussian with given shape, subject to random noise epsilon"""
@@ -248,7 +256,13 @@ class VAE():
                 x = self.dataset.next_batch()  # (batch_size, n_steps, n_inputs)
                 x = np.transpose(x, [1, 0, 2])  # (n_steps, batch_size, n_inputs)
 
-                feed_dict = {self.x_in: x}
+                batch_size = x.shape[1]
+                n_inputs = x.shape[2]
+                x_shifted = np.concatenate((np.zeros((1, batch_size, n_inputs)), x[0:-1, :, :]), axis=0)
+
+                assert x.shape == x_shifted.shape
+
+                feed_dict = {self.input_placeholder: x, self.shifted_input_placeholder: x_shifted}
                 fetches = [self.x_reconstructed, self.cost, self.kl_loss, self.rec_loss, self.global_step, self.train_op]
                 x_reconstructed, cost, kl_loss, rec_loss, i, _ = self.sesh.run(fetches, feed_dict=feed_dict)
 
