@@ -14,6 +14,7 @@ class SimpleLSTM(object):
                 Can be None, in which case, the LSTM is initialised with a zero state (see rnn.rnn implementation)
         :param n_hidden: size of the hidden layers of the LSTM
         :param lstm_activation: Activation function of the inner states of the LSTM
+                (determines the range of values stored in the hidden states)
         """
         self.cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0, activation=lstm_activation)
         self.scope = scope
