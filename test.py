@@ -1,6 +1,36 @@
 import tensorflow as tf
-from training.rnn_models import colah_lstm
+from nn_models.lstm import ColahLSTM
 import numpy as np
+
+
+### Testing get_variable
+with tf.Session() as sess:
+    biases = tf.get_variable("biases", initializer=tf.zeros([10]), trainable=True)
+
+    print([var._variable for var in tf.all_variables()])
+
+    biases2 = tf.get_variable("biases", initializer=tf.zeros([10]), trainable=True)
+    asdfas
+
+### Testing how to handle tensor multiplies
+x = tf.ones((1, 2, 4))
+w = tf.ones((4, 5))
+
+x_mat = tf.ones((2, 4))
+z_mat = tf.matmul(x_mat, w)
+
+try:
+    z = tf.matmul(x, w)
+except ValueError:
+    z = tf.map_fn(lambda _: tf.matmul(_, w), x)
+
+with tf.Session() as sess:
+
+    print(z_mat.eval())
+    print(z.eval())
+
+##########################################
+
 
 colah_lstm_n_hidden = 40
 
