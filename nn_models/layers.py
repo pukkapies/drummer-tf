@@ -18,13 +18,13 @@ class Dense():
     def __call__(self, x):
         """Dense layer currying, to apply layer to any input tensor `x`"""
         # tf.Tensor -> tf.Tensor
-        with tf.name_scope(self.scope):
-            while True:
-                try: # reuse weights if already initialized
-                    return self.nonlinearity(tf.matmul(x, self.w) + self.b)
-                except(AttributeError):
-                    self.w, self.b = self.initialiser(x.get_shape()[1].value, self.size)
-                    self.w = tf.nn.dropout(self.w, self.dropout)
+        with tf.variable_scope(self.scope):
+            self.w, self.b = self.initialiser(x.get_shape()[-1].value, self.size)
+            # self.w = tf.nn.dropout(self.w, self.dropout)
+            try:
+                return self.nonlinearity(tf.matmul(x, self.w) + self.b)
+            except ValueError:  # This deals with the case where x has shape (n_steps, batch_size, n_inputs)
+                return tf.map_fn(lambda _: self.nonlinearity(tf.matmul(_, self.w) + self.b), x)
 
 
 class FeedForward():
