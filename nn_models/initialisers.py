@@ -23,8 +23,12 @@ def wbVars_Xavier(fan_in: int, fan_out: int):
     # (int, int) -> (tf.Variable, tf.Variable)
     init_boundary = np.sqrt(6. / (fan_in + fan_out))
 
-    weights = (tf.Variable(tf.random_uniform([fan_in, fan_out], minval=-init_boundary, maxval=init_boundary),
-                           trainable=True, name="weights"))
-    biases = tf.Variable(tf.zeros([fan_out]), trainable=True, name="biases")
+    # weights = (tf.Variable(tf.random_uniform([fan_in, fan_out], minval=-init_boundary, maxval=init_boundary),
+    #                        trainable=True, name="weights"))
+    weights = (tf.get_variable("weights", initializer=tf.random_uniform([fan_in, fan_out],
+                                                                        minval=-init_boundary, maxval=init_boundary),
+                           trainable=True))
+    # biases = tf.Variable(tf.zeros([fan_out]), trainable=True, name="biases")
+    biases = tf.get_variable("biases", initializer=tf.zeros([fan_out]), trainable=True)
 
     return weights, biases
