@@ -3,6 +3,23 @@ from nn_models.lstm import ColahLSTM
 import numpy as np
 
 
+### Testing gaussian draws
+
+def gaussian_draw(shape):
+    return tf.random_normal(shape, name="epsilon")
+
+shape = [1,2]
+with tf.Session() as sess:
+    epsilon = gaussian_draw(shape)
+    print('epsilon 1:', epsilon.eval())
+    print('epsilon 2:', epsilon.eval())
+
+    print(sess.run(gaussian_draw(shape)))
+    print(sess.run(gaussian_draw(shape)))
+    print(sess.run(gaussian_draw(shape)))
+    print(sess.run(gaussian_draw(shape)))
+crash
+
 ### Testing get_variable
 with tf.Session() as sess:
     biases = tf.get_variable("biases", initializer=tf.zeros([10]), trainable=True)
@@ -10,7 +27,7 @@ with tf.Session() as sess:
     print([var._variable for var in tf.all_variables()])
 
     biases2 = tf.get_variable("biases", initializer=tf.zeros([10]), trainable=True)
-    asdfas
+
 
 ### Testing how to handle tensor multiplies
 x = tf.ones((1, 2, 4))

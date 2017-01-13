@@ -40,7 +40,7 @@ class VAE():
             * d_hyperparameters (optional dictionary of updates to `DEFAULTS`)
             * model_to_restore (filename of model to generate from (provide filename, without .meta)
         """
-        self.sesh = tf.Session()
+        self.sess = tf.Session()
 
         if build_dict:
             assert not model_to_restore
@@ -64,7 +64,7 @@ class VAE():
             handles = self._buildGraph()
             for handle in handles:
                 tf.add_to_collection(VAE.RESTORE_KEY, handle)
-            self.sesh.run(tf.initialize_all_variables())
+            self.sess.run(tf.initialize_all_variables())
         elif model_to_restore:
             assert not build_dict
             model_datetime, model_name = os.path.basename(model_to_restore).split("_vae_")  # basename gives just the filename
@@ -73,8 +73,8 @@ class VAE():
             # rebuild graph
             meta_graph = os.path.abspath(model_to_restore)
             tf.train.import_meta_graph(meta_graph + ".meta").restore(
-                self.sesh, meta_graph)
-            handles = self.sesh.graph.get_collection(VAE.RESTORE_KEY)
+                self.sess, meta_graph)
+            handles = self.sess.graph.get_collection(VAE.RESTORE_KEY)
         else:
             raise Exception("VAE must be initialised with either build_dict or model_to_restore")
 
@@ -85,18 +85,18 @@ class VAE():
          self.cost, self.kl_loss, self.rec_loss, self.l2_reg, self.global_step, self.train_op) = handles
 
         if save_graph_def: # tensorboard
-            self.logger = tf.train.SummaryWriter(log_dir, self.sesh.graph)
+            self.logger = tf.train.SummaryWriter(log_dir, self.sess.graph)
 
     @property
     def step(self):
         """Train step"""
-        return self.global_step.eval(session=self.sesh)
+        return self.global_step.eval(session=self.sess)
 
     def save_model(self, outdir):
         """Saves the model if a self.saver object exists"""
         try:
             outfile = outdir + 'model'
-            self.saver.save(self.sesh, outfile, global_step=self.step)
+            self.saver.save(self.sess, outfile, global_step=self.step)
         except AttributeError:
             return
 
@@ -114,10 +114,11 @@ class VAE():
             print('z_log_sigma shape: ', z_log_sigma.get_shape())
 
             # kingma & welling: only 1 draw necessary as long as minibatch large enough (>100)
-            z = self.sampleGaussian(z_mean, z_log_sigma)
+            z = self.sampleGaussian(z_mean, z_log_sigma)  # Tensor z evaluates to different samples each time
 
             # decoding / "generative": p(x|z)
-            x_reconstructed = self.decoder(z, inputs=x_shifted)  # Feed the ground truth to the decoder
+            # x_reconstructed = self.decoder(z, inputs=x_shifted)  # Feed the ground truth to the decoder
+            x_reconstructed = self.decoder(z_mean, inputs=x_shifted)  # When KL cost is eliminated, can just use the mean
 
             print("Finished setting up decoder")
             print([var._variable for var in tf.all_variables()])
@@ -135,7 +136,7 @@ class VAE():
             kl_loss = VAE.kullbackLeibler(z_mean, z_log_sigma)
 
             with tf.name_scope("l2_regularization"):
-                regularizers = [tf.nn.l2_loss(var) for var in self.sesh.graph.get_collection(
+                regularizers = [tf.nn.l2_loss(var) for var in self.sess.graph.get_collection(
                     "trainable_variables") if "weights" in var.name]
                 l2_reg = self.lambda_l2_reg * tf.add_n(regularizers)
 
@@ -180,7 +181,7 @@ class VAE():
         with tf.name_scope("sample_gaussian"):
             # reparameterization trick
             epsilon = tf.random_normal(tf.shape(log_sigma), name="epsilon")
-            return mu + epsilon * tf.exp(log_sigma) # N(mu, I * sigma**2)
+            return mu + epsilon * tf.exp(log_sigma)  # N(mu, I * sigma**2)
 
     @staticmethod
     def crossEntropy(obs, actual, offset=1e-7):
@@ -221,7 +222,7 @@ class VAE():
         """
         # np.array -> [float, float]
         feed_dict = {self.x_in: x}
-        return self.sesh.run([self.z_mean, self.z_log_sigma], feed_dict=feed_dict)
+        return self.sess.run([self.z_mean, self.z_log_sigma], feed_dict=feed_dict)
 
     def decode(self, zs=None):
         """Generative decoder from latent space to reconstructions of input space;
@@ -231,10 +232,10 @@ class VAE():
         feed_dict = dict()
         if zs is not None:
             is_tensor = lambda x: hasattr(x, "eval")
-            zs = (self.sesh.run(zs) if is_tensor(zs) else zs) # coerce to np.array
+            zs = (self.sess.run(zs) if is_tensor(zs) else zs) # coerce to np.array
             feed_dict.update({self.z_: zs})
         # else, zs defaults to draw from conjugate prior z ~ N(0, I)
-        return self.sesh.run(self.x_reconstructed_, feed_dict=feed_dict)
+        return self.sess.run(self.x_reconstructed_, feed_dict=feed_dict)
 
     def vae(self, x):
         """End-to-end autoencoder"""
@@ -264,7 +265,7 @@ class VAE():
 
                 feed_dict = {self.input_placeholder: x, self.shifted_input_placeholder: x_shifted}
                 fetches = [self.x_reconstructed, self.cost, self.kl_loss, self.rec_loss, self.global_step, self.train_op]
-                x_reconstructed, cost, kl_loss, rec_loss, i, _ = self.sesh.run(fetches, feed_dict=feed_dict)
+                x_reconstructed, cost, kl_loss, rec_loss, i, _ = self.sess.run(fetches, feed_dict=feed_dict)
 
                 self.accumulated_cost += cost
 
