@@ -15,6 +15,7 @@ def main(args):
         model_folder += '/'
 
     batch_size = args.batch_size
+    samples_per_batch = args.samples_per_batch
     dataset = DatasetFeed(loaded, batch_size)
 
     #TODO Figure out a better way to choose the padding value
@@ -58,16 +59,18 @@ def main(args):
                      'analysis_type': analysis_type,
                      'latent_dim': latent_dim}
 
-    input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size, n_input], name="x")
+    input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size * samples_per_batch, n_input], name="x")
     # The following placeholder is for feeding the ground truth to the LSTM decoder - the first input should be zeros
-    shifted_input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size, n_input], name="x_shifted")
+    shifted_input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size * samples_per_batch, n_input], name="x_shifted")
     print('input_placeholder shape: ', input_placeholder.get_shape())
 
     build_dict = {'encoder': encoder, 'decoder': decoder, 'n_input': n_input, 'input_placeholder': input_placeholder,
                   'shifted_input_placeholder': shifted_input_placeholder,
                   'latent_dim': latent_dim, 'dataset': dataset, 'model_folder': model_folder}
 
-    vae = VAE(build_dict=build_dict, d_hyperparams={'KL_loss_coeff': 0.}, log_dir=log_dir)
+    vae = VAE(build_dict=build_dict,
+              d_hyperparams={'KL_loss_coeff': 0., 'samples_per_batch': samples_per_batch},
+              log_dir=log_dir)
 
     create_json(model_folder + 'network_settings.json', json_settings)
 

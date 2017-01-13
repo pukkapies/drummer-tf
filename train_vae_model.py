@@ -40,6 +40,8 @@ def get_arguments():
     parser = argparse.ArgumentParser(description='LSTM audio synth model')
     parser.add_argument('--batch_size', type=int, default=BATCH_SIZE,
                         help='How many wav files to process at once.')
+    parser.add_argument('--samples_per_batch', type=int, default=1,
+                        help='Number of Gaussian samples for each element in the batch.')
     parser.add_argument('--vector_folder', type=str, default=VECTOR_FOLDER,
                         help='The directory containing the vectorised data.')
     parser.add_argument('--store_metadata', type=bool, default=False,

@@ -23,7 +23,8 @@ class VAE():
         "learning_rate": 1E-3,
         "dropout": 1.,
         "lambda_l2_reg": 0.,
-        "KL_loss_coeff": 1
+        "KL_loss_coeff": 1,
+        "samples_per_batch": 1
     }
     RESTORE_KEY = "to_restore"
 
@@ -102,10 +103,17 @@ class VAE():
 
     def _buildGraph(self):
         with tf.variable_scope(self.scope) as graph_scope:
+            # Both will have size (n_steps, batch_size * samples_per_batch, n_inputs)
             x_in = self.input_placeholder
             x_shifted = self.shifted_input_placeholder
+            assert x_in.get_shape()[1] % self.samples_per_batch == 0
+            assert x_shifted.get_shape()[1] % self.samples_per_batch == 0
 
-            z_mean, z_log_sigma = self.encoder(x_in)
+            n_steps = x_in.get_shape()[0].value  # To convert to int (otherwise this returns Dimension object)
+
+            print("x_in, x_shifted shape: ", x_in.get_shape(), x_shifted.get_shape())
+
+            z_mean, z_log_sigma = self.encoder(x_in)  # (batch_size * samples_per_batch, latent_dim)
 
             print("Finished setting up encoder")
             print([var._variable for var in tf.all_variables()])
@@ -113,12 +121,17 @@ class VAE():
             print('z_mean shape: ', z_mean.get_shape())
             print('z_log_sigma shape: ', z_log_sigma.get_shape())
 
-            # kingma & welling: only 1 draw necessary as long as minibatch large enough (>100)
+            # z is random variables with shape (batch_size * samples_per_batch, latent_dim)
             z = self.sampleGaussian(z_mean, z_log_sigma)  # Tensor z evaluates to different samples each time
 
             # decoding / "generative": p(x|z)
-            # x_reconstructed = self.decoder(z, inputs=x_shifted)  # Feed the ground truth to the decoder
-            x_reconstructed = self.decoder(z_mean, inputs=x_shifted)  # When KL cost is eliminated, can just use the mean
+            # x_reconstructed is (n_steps, batch_size * samples_per_batch, n_outputs)
+            x_reconstructed = self.decoder(z, inputs=x_shifted)  # Feed the ground truth to the decoder
+            # x_reconstructed = self.decoder(z_mean, inputs=x_shifted)  # When KL cost is eliminated, can just use the mean
+
+            # Reshape x_reconstructed into (n_steps, samples_per_batch, batch_size, n_inputs)
+            x_reconstructed = tf.reshape(x_reconstructed, [n_steps, self.samples_per_batch, self.batch_size, self.n_input])
+            x_in_reshaped = tf.reshape(x_in, [n_steps, self.samples_per_batch, self.batch_size, self.n_input])
 
             print("Finished setting up decoder")
             print([var._variable for var in tf.all_variables()])
@@ -126,14 +139,21 @@ class VAE():
             # reconstruction loss: mismatch b/w x & x_reconstructed
             # binary cross-entropy -- assumes x & p(x|z) are iid Bernoullis
 
-            print('x_reconstructed shape: ', x_reconstructed.get_shape())  # (n_steps, batch_size, n_outputs)
-            print('x_in shape: ', x_in.get_shape())  # (n_steps, batch_size, n_outputs)
+            print('x_reconstructed shape: ', x_reconstructed.get_shape())  # (n_steps, sample_per_batch, batch_size, n_outputs)
+            print('x_in_reshaped shape: ', x_in_reshaped.get_shape())  # (n_steps, sample_per_batch, batch_size, n_outputs)
 
             # rec_loss = VAE.crossEntropy(x_reconstructed, x_in)
-            rec_loss = tf.reduce_mean((x_reconstructed - x_in)**2, reduction_indices=[0, 2])  # Reduce everything but the batch_size
+            rec_loss = tf.reduce_mean((x_reconstructed - x_in_reshaped)**2, reduction_indices=[0, 1, 3])  # Reduce everything but the batch_size
+            print('rec_loss shape:', rec_loss.get_shape())
 
             # Kullback-Leibler divergence: mismatch b/w approximate vs. imposed/true posterior
-            kl_loss = VAE.kullbackLeibler(z_mean, z_log_sigma)
+            # Recall z_mean, z_log_sigma have shape (batch_size * samples_per_batch, latent_dim),
+            # i.e. they are repeated (samples_per_batch) times
+            # For the kl_loss we only want the means and stdevs over the batch_size
+            z_mean_batch = z_mean[:self.batch_size, :]
+            z_log_sigma_batch = z_log_sigma[:self.batch_size, :]
+            kl_loss = VAE.kullbackLeibler(z_mean_batch, z_log_sigma_batch)
+            print('kl_loss shape:', kl_loss.get_shape())
 
             with tf.name_scope("l2_regularization"):
                 regularizers = [tf.nn.l2_loss(var) for var in self.sess.graph.get_collection(
@@ -255,11 +275,12 @@ class VAE():
         while True:
             try:
                 x = self.dataset.next_batch()  # (batch_size, n_steps, n_inputs)
-                x = np.transpose(x, [1, 0, 2])  # (n_steps, batch_size, n_inputs)
+                x = np.concatenate(tuple([x] * self.samples_per_batch), axis=0)
+                x = np.transpose(x, [1, 0, 2])  # (n_steps, samples_per_batch * batch_size, n_inputs)
 
-                batch_size = x.shape[1]
+                total_batch_size = x.shape[1]  # batch_size * samples_per_batch
                 n_inputs = x.shape[2]
-                x_shifted = np.concatenate((np.zeros((1, batch_size, n_inputs)), x[0:-1, :, :]), axis=0)
+                x_shifted = np.concatenate((np.zeros((1, total_batch_size, n_inputs)), x[0:-1, :, :]), axis=0)
 
                 assert x.shape == x_shifted.shape
 

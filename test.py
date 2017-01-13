@@ -3,6 +3,18 @@ from nn_models.lstm import ColahLSTM
 import numpy as np
 
 
+### Reshape test
+input = np.random.randn(6, 5)
+x = tf.placeholder(dtype=tf.float32, shape=(6,5), name='x')
+y = x[0:3,:]
+x_reshaped = tf.reshape(x, [2, 3, 5], name="x_reshaped")
+with tf.Session() as sess:
+    print(sess.run(y, feed_dict={x: input}))
+    print(sess.run(x, feed_dict={x: input}))
+    print(sess.run(x_reshaped, feed_dict={x: input}))
+die
+
+
 ### Testing gaussian draws
 
 def gaussian_draw(shape):
