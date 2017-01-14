@@ -14,6 +14,7 @@ def main(args):
     if model_folder[-1] != '/':
         model_folder += '/'
 
+    kl_loss_coeff = args.KL_loss_coeff
     batch_size = args.batch_size
     samples_per_batch = args.samples_per_batch
     dataset = DatasetFeed(loaded, batch_size)
@@ -69,7 +70,7 @@ def main(args):
                   'latent_dim': latent_dim, 'dataset': dataset, 'model_folder': model_folder}
 
     vae = VAE(build_dict=build_dict,
-              d_hyperparams={'KL_loss_coeff': 0., 'samples_per_batch': samples_per_batch},
+              d_hyperparams={'KL_loss_coeff': kl_loss_coeff, 'samples_per_batch': samples_per_batch},
               log_dir=log_dir)
 
     create_json(model_folder + 'network_settings.json', json_settings)
