@@ -3,6 +3,60 @@ from nn_models.lstm import ColahLSTM
 import numpy as np
 
 
+
+#### Assign and assign_add test
+
+npzeros = np.zeros((1,2))
+npones = np.ones((1, 2))
+v = tf.Variable(npzeros, dtype=tf.float32)
+w = tf.Variable(npones, dtype=tf.float32)
+wtf = tf.ones((1, 2))
+
+with tf.Session() as sess:
+    sess.run(tf.initialize_all_variables())
+    print('v', v.eval()) # [0, 0]
+    print('wtf', wtf.eval()) # [1, 1]
+    v_new = v.assign_add(wtf)
+    print('v', v.eval()) # [0, 0]
+    print('vnew', v_new) #  AssignAdd Tensor
+    print('vnew', v_new.eval()) # [1, 1]
+    print('v', v.eval()) # [1, 1]
+
+    q = v.assign(v_new)
+    print('After the assign, v', v.eval()) # [1, 1]
+    print(v) # Variable
+    print(q) # Assign Tensor
+
+    print('v', v.eval()) # [1, 1]
+    print('q', q.eval()) # [2, 2]
+    print('v', v.eval()) # [2, 2]
+    print('q', q.eval()) # [3, 3]
+    print('v', v.eval()) # [3, 3]
+
+asdfasdf
+
+########
+
+npzeros = np.zeros((2, 2))
+plac = tf.placeholder(tf.float32, shape=(2, 2), name='plac')
+zeros = tf.zeros(plac.get_shape())
+zeros_like = tf.zeros_like(plac)
+v = tf.Variable(tf.zeros(plac.get_shape()))
+
+with tf.Session() as sess:
+    sess.run(tf.initialize_all_variables())
+    print(plac)
+    print(v)
+    print(sess.run(zeros, feed_dict={plac: npzeros}))
+    print(zeros.eval())
+    # print(zeros_like.eval()) # Raises an error
+    print(sess.run(zeros_like, feed_dict={plac: npzeros}))
+    print(v.eval())
+
+    def fn1(): print('fn1')
+    def fn2(): print('fn2')
+asdfa
+
 ### Reshape test
 input = np.random.randn(6, 5)
 x = tf.placeholder(dtype=tf.float32, shape=(6,5), name='x')

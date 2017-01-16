@@ -14,7 +14,6 @@ VECTOR_FOLDER = None
 # Training parameters
 LEARNING_RATE_LIST = [0.001, 0.0001, 0.00001]
 NUM_TRAINING_STEPS = 10000
-BATCH_SIZE = 3
 STARTED_DATESTRING = "{0:%Y-%m-%dT%H-%M-%S}".format(datetime.now())
 DISPLAY_STEP = 10
 SAVE_EVERY = 500
@@ -38,7 +37,7 @@ def get_arguments():
         return {'true': True, 'false': False}[s.lower()]
 
     parser = argparse.ArgumentParser(description='LSTM audio synth model')
-    parser.add_argument('--batch_size', type=int, default=BATCH_SIZE,
+    parser.add_argument('--batch_size', type=int, default=None,
                         help='How many wav files to process at once.')
     parser.add_argument('--samples_per_batch', type=int, default=1,
                         help='Number of Gaussian samples for each element in the batch.')
@@ -66,8 +65,6 @@ def get_arguments():
                         help='Numbers of hidden units to feed into cell and hidden states of decoder')
     parser.add_argument('--latent_space_dimension', default=2, type=int,
                          help='Dimension of the latent (z) space')
-    parser.add_argument('--KL_loss_coeff', default=1., type=float,
-                        help='Coefficient to multiply KL loss (1 is default)')
     parser.add_argument('--display_step', type=int, default=DISPLAY_STEP,
                         help='How often to display training progress and save model.')
     parser.add_argument('--grad_clip', type=float, default=5.,
@@ -93,6 +90,9 @@ if __name__ == '__main__':
     else:
         if not os.path.exists(args.vector_folder):
             raise Exception('{} not found'.format(args.vector_folder))
+
+    if args.batch_size is None:
+        raise Exception('Need to specify the number of audio samples to process at each step (--batch_size)')
 
     if args.vector_folder[-1] == '/':
         args.vector_folder = args.vector_folder[:-1]
