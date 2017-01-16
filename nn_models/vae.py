@@ -11,6 +11,7 @@ from utils.functionaltools import composeAll
 from nn_models.layers import Dense, FeedForward
 # from utils.utils import print_
 from tensorflow.python.ops.gradients import AggregationMethod
+from utils.training_utils import GradientAccumulator
 
 
 class VAE():
@@ -23,8 +24,8 @@ class VAE():
         "learning_rate": 1E-3,
         "dropout": 1.,
         "lambda_l2_reg": 0.,
-        "KL_loss_coeff": 1,
-        "samples_per_batch": 1
+        "samples_per_batch": 1,
+        "max_batch_size_for_gradients": None
     }
     RESTORE_KEY = "to_restore"
 
@@ -45,7 +46,6 @@ class VAE():
 
         if build_dict:
             assert not model_to_restore
-            print(build_dict)
             assert 'dataset' in build_dict
             assert all(key in build_dict for key in ['encoder', 'decoder', 'n_input',
                                                      'input_placeholder', 'latent_dim',
@@ -60,6 +60,7 @@ class VAE():
             self.dataset = build_dict['dataset']
             self.model_folder = build_dict['model_folder']
             self.batch_size = self.dataset.minibatch_size
+            self.global_step = tf.Variable(0, trainable=False, name="global_step")
             # build graph
             self.scope = scope
             handles = self._buildGraph()
@@ -83,7 +84,7 @@ class VAE():
 
         # unpack handles for tensor ops to feed or fetch
         (self.z_mean, self.z_log_sigma, self.x_reconstructed, self.z_, self.x_reconstructed_,
-         self.cost, self.kl_loss, self.rec_loss, self.l2_reg, self.global_step, self.train_op) = handles
+         self.cost, self.kl_loss, self.rec_loss, self.l2_reg, self.apply_gradients_op) = handles
 
         if save_graph_def: # tensorboard
             self.logger = tf.train.SummaryWriter(log_dir, self.sess.graph)
@@ -168,17 +169,18 @@ class VAE():
             print("Defined loss functions")
 
             # optimization
-            global_step = tf.Variable(0, trainable=False)
+
             with tf.name_scope("Adam_optimizer"):
-                optimizer = tf.train.AdamOptimizer(self.learning_rate)
+                self.optimizer = tf.train.AdamOptimizer(self.learning_rate)
                 tvars = tf.trainable_variables()
                 # Set AggregationMethod to try to avoid crash when computing all gradients simultaneously
-                grads_and_vars = optimizer.compute_gradients(cost, tvars,
+                grads_and_vars = self.optimizer.compute_gradients(cost, tvars,
                                                              aggregation_method=AggregationMethod.EXPERIMENTAL_TREE)
                 clipped = [(tf.clip_by_value(grad, -5, 5), tvar) # gradient clipping
                         for grad, tvar in grads_and_vars]
-                train_op = optimizer.apply_gradients(clipped, global_step=global_step,
-                                                     name="minimize_cost")
+                self.gradient_acc = GradientAccumulator(clipped, self.optimizer)
+                apply_gradients_op = self.optimizer.apply_gradients(self.gradient_acc.cumulative_gradient_list(),
+                                                                    global_step=self.global_step, name='minimize_cost')
 
             print("Defined training ops")
 
@@ -194,7 +196,7 @@ class VAE():
             x_reconstructed_ = self.decoder(z_)
 
             return (z_mean, z_log_sigma, x_reconstructed,  # Removed dropout from second place
-                    z_, x_reconstructed_, cost, kl_loss, rec_loss, l2_reg, global_step, train_op)
+                    z_, x_reconstructed_, cost, kl_loss, rec_loss, l2_reg, apply_gradients_op)
 
     def sampleGaussian(self, mu, log_sigma):
         """(Differentiably!) draw sample from Gaussian with given shape, subject to random noise epsilon"""
@@ -267,6 +269,11 @@ class VAE():
         if save:
             self.saver = tf.train.Saver(tf.all_variables())
 
+        # Get ops for gradient updates
+
+        update_gradients_ops = self.gradient_acc.update_gradients_ops()
+        clear_gradients_ops = self.gradient_acc.clear_gradients()
+
         outdir = self.model_folder
         self.accumulated_cost = 0
         now = datetime.now().isoformat()[11:]
@@ -284,13 +291,29 @@ class VAE():
 
                 assert x.shape == x_shifted.shape
 
+                if self.max_batch_size_for_gradients and total_batch_size > self.max_batch_size_for_gradients:
+                    pass
+
                 feed_dict = {self.input_placeholder: x, self.shifted_input_placeholder: x_shifted}
-                fetches = [self.x_reconstructed, self.cost, self.kl_loss, self.rec_loss, self.global_step, self.train_op]
-                x_reconstructed, cost, kl_loss, rec_loss, i, _ = self.sess.run(fetches, feed_dict=feed_dict)
+                fetches = [self.x_reconstructed, self.cost, self.kl_loss, self.rec_loss, self.global_step] + \
+                          update_gradients_ops
+                x_reconstructed, cost, kl_loss, rec_loss, i, *_ = self.sess.run(fetches, feed_dict=feed_dict)
+
+                # print("Gradients before being cleared:")
+                # print([(k, self.sess.run(self.gradient_acc._var_to_accum_grad[k], feed_dict=feed_dict))
+                #        for k in self.gradient_acc._var_to_accum_grad])
+                print("Running train op...", end='')
+                self.sess.run(self.apply_gradients_op, feed_dict=feed_dict)
+                print("done")
+
+                self.sess.run(clear_gradients_ops)
+                # print("Gradients should be zero: ")
+                # print([(k, self.sess.run(self.gradient_acc._var_to_accum_grad[k], feed_dict=feed_dict))
+                #        for k in self.gradient_acc._var_to_accum_grad])
 
                 self.accumulated_cost += cost
 
-                if i%10 == 0 and verbose:
+                if True or (i % 10 == 0 and verbose):
                     print("Step {}-> avg total cost: {}, cost for this minibatch: {}".format(i, self.accumulated_cost / i, cost))
                     print("   minibatch KL_cost = {}, reconst = {}".format(np.mean(kl_loss),
                                                                            np.mean(rec_loss)))
