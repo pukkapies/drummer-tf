@@ -79,6 +79,9 @@ class DatasetFeed(object):
             return np.asarray(self.data[current_index:] + self.data[:next_index % self.num_data_points])
 
 
-
+class DatasetPreloaded(object):
+    #TODO: class for preloading a dataset as a variable, so it is stored on the GPU
+    #TODO: see (https://www.tensorflow.org/versions/r0.11/how_tos/reading_data/#preloaded_data)
+    pass
 
 
