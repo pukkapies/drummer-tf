@@ -25,7 +25,8 @@ class VAE():
         "dropout": 1.,
         "lambda_l2_reg": 0.,
         "samples_per_batch": 1,
-        "max_batch_size_for_gradients": None
+        "max_batch_size_for_gradients": None,
+        "deterministic_warm_up": 0
     }
     RESTORE_KEY = "to_restore"
 
@@ -84,7 +85,8 @@ class VAE():
 
         # unpack handles for tensor ops to feed or fetch
         (self.z_mean, self.z_log_sigma, self.x_reconstructed, self.z_, self.x_reconstructed_,
-         self.cost, self.kl_loss, self.rec_loss, self.l2_reg, self.apply_gradients_op) = handles
+         self.cost, self.cost_no_KL, self.kl_loss, self.rec_loss, self.l2_reg,
+         self.apply_gradients_op, self.apply_gradients_op_no_KL) = handles
 
         if save_graph_def: # tensorboard
             self.logger = tf.train.SummaryWriter(log_dir, self.sess.graph)
@@ -163,25 +165,38 @@ class VAE():
 
             with tf.name_scope("cost"):
                 # average over minibatch
-                cost = tf.reduce_mean(rec_loss + self.KL_loss_coeff * kl_loss, name="vae_cost")
+                cost = tf.reduce_mean(rec_loss + kl_loss, name="vae_cost")
                 cost += l2_reg
+
+            with tf.name_scope("cost_no_KL"):
+                cost_no_KL = tf.reduce_mean(rec_loss)
+                cost_no_KL += l2_reg
 
             print("Defined loss functions")
 
             # optimization
-
             with tf.name_scope("Adam_optimizer"):
                 self.optimizer = tf.train.AdamOptimizer(self.learning_rate)
                 tvars = tf.trainable_variables()
+
                 # Set AggregationMethod to try to avoid crash when computing all gradients simultaneously
                 grads_and_vars = self.optimizer.compute_gradients(cost, tvars,
                                                              aggregation_method=AggregationMethod.EXPERIMENTAL_TREE)
                 clipped = [(tf.clip_by_value(grad, -5, 5), tvar) # gradient clipping
                         for grad, tvar in grads_and_vars]
+
+                grads_and_vars_no_KL = self.optimizer.compute_gradients(cost_no_KL, tvars,
+                                                                        aggregation_method=AggregationMethod.EXPERIMENTAL_TREE)
+                clipped_no_KL = [(tf.clip_by_value(grad, -5, 5), tvar) # gradient clipping
+                        for grad, tvar in grads_and_vars_no_KL]
+
                 self.gradient_acc = GradientAccumulator(clipped, self.optimizer)
+                self.gradient_acc_no_KL = GradientAccumulator(clipped_no_KL, self.optimizer)
+
                 apply_gradients_op = self.optimizer.apply_gradients(self.gradient_acc.cumulative_gradient_list(),
                                                                     global_step=self.global_step, name='minimize_cost')
-
+                apply_gradients_op_no_KL = self.optimizer.apply_gradients(self.gradient_acc_no_KL.cumulative_gradient_list(),
+                                                                        global_step=self.global_step, name='minimize_cost_no_KL')
             print("Defined training ops")
 
             print([var._variable for var in tf.all_variables()])
@@ -196,7 +211,8 @@ class VAE():
             x_reconstructed_ = self.decoder(z_)
 
             return (z_mean, z_log_sigma, x_reconstructed,  # Removed dropout from second place
-                    z_, x_reconstructed_, cost, kl_loss, rec_loss, l2_reg, apply_gradients_op)
+                    z_, x_reconstructed_, cost, cost_no_KL, kl_loss, rec_loss, l2_reg,
+                    apply_gradients_op, apply_gradients_op_no_KL)
 
     def sampleGaussian(self, mu, log_sigma):
         """(Differentiably!) draw sample from Gaussian with given shape, subject to random noise epsilon"""
@@ -274,6 +290,9 @@ class VAE():
         update_gradients_ops = self.gradient_acc.update_gradients_ops()
         clear_gradients_ops = self.gradient_acc.clear_gradients()
 
+        update_gradients_ops_no_KL = self.gradient_acc_no_KL.update_gradients_ops()
+        clear_gradients_ops_no_KL = self.gradient_acc_no_KL.clear_gradients()
+
         outdir = self.model_folder
         self.accumulated_cost = 0
         now = datetime.now().isoformat()[11:]
@@ -295,28 +314,44 @@ class VAE():
                     pass
 
                 feed_dict = {self.input_placeholder: x, self.shifted_input_placeholder: x_shifted}
-                fetches = [self.x_reconstructed, self.cost, self.kl_loss, self.rec_loss, self.global_step] + \
-                          update_gradients_ops
+
+                print("Updating gradients...")
+                if self.deterministic_warm_up:
+                    fetches = [self.x_reconstructed, self.cost_no_KL, self.kl_loss, self.rec_loss, self.global_step] + \
+                              update_gradients_ops_no_KL
+                else:
+                    fetches = [self.x_reconstructed, self.cost, self.kl_loss, self.rec_loss, self.global_step] + \
+                              update_gradients_ops
                 x_reconstructed, cost, kl_loss, rec_loss, i, *_ = self.sess.run(fetches, feed_dict=feed_dict)
 
                 # print("Gradients before being cleared:")
                 # print([(k, self.sess.run(self.gradient_acc._var_to_accum_grad[k], feed_dict=feed_dict))
                 #        for k in self.gradient_acc._var_to_accum_grad])
-                print("Running train op...", end='')
-                self.sess.run(self.apply_gradients_op, feed_dict=feed_dict)
-                print("done")
 
-                self.sess.run(clear_gradients_ops)
+                print("Applying gradients...", end='')
+                if self.deterministic_warm_up:
+                    self.sess.run(self.apply_gradients_op_no_KL, feed_dict=feed_dict)
+                    print("done")
+                    self.deterministic_warm_up -= 1
+                    print("{} more steps of zero-KL cost".format(self.deterministic_warm_up))
+                    self.sess.run(clear_gradients_ops_no_KL)
+                else:
+                    self.sess.run(self.apply_gradients_op, feed_dict=feed_dict)
+                    print("done")
+                    self.sess.run(clear_gradients_ops)
+
+                print("Step {}-> cost for this minibatch: {}".format(i, cost))
+                print("   minibatch KL_cost = {}, reconst = {}".format(np.mean(kl_loss),
+                                                                           np.mean(rec_loss)))
+
                 # print("Gradients should be zero: ")
                 # print([(k, self.sess.run(self.gradient_acc._var_to_accum_grad[k], feed_dict=feed_dict))
                 #        for k in self.gradient_acc._var_to_accum_grad])
 
-                self.accumulated_cost += cost
-
-                if True or (i % 10 == 0 and verbose):
-                    print("Step {}-> avg total cost: {}, cost for this minibatch: {}".format(i, self.accumulated_cost / i, cost))
-                    print("   minibatch KL_cost = {}, reconst = {}".format(np.mean(kl_loss),
-                                                                           np.mean(rec_loss)))
+                # if i % 10 == 0 and verbose:
+                #     print("Step {}-> cost for this minibatch: {}".format(i, cost))
+                #     print("   minibatch KL_cost = {}, reconst = {}".format(np.mean(kl_loss),
+                #                                                            np.mean(rec_loss)))
                 if i % 500 == 0:
                     self.save_model(outdir)
 

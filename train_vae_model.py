@@ -53,6 +53,8 @@ def get_arguments():
                         help='How many steps to save each checkpoint after')
     parser.add_argument('--num_training_steps', type=int, default=NUM_TRAINING_STEPS,
                         help='Number of training steps.')
+    parser.add_argument('--deterministic_warm_up', type=int, default=0,
+                        help='Number of training steps of "deterministic warm up", where KL cost is removed')
     parser.add_argument('--learning_rates', default=LEARNING_RATE_LIST, type=float, nargs='+',
                         help='Learning rate list for training.')
     parser.add_argument('--lstm_encoder_hidden_units', default=N_HIDDEN, type=int, nargs='+',
