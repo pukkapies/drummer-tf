@@ -30,7 +30,7 @@ def main(args):
         network_settings = json.load(f)
 
     loaded, json_vector_settings, analysis_type = load_from_dir_root(args.vector_folder)
-    dataset = DatasetFeed(loaded, 96)
+    dataset = DatasetFeed(loaded, 9)
     # for datablock in dataset.data:
     #     print(datablock.shape)
 
@@ -62,7 +62,7 @@ def main(args):
 
     ##################### PLOT IN LATENT SPACE #####################
 
-    mus, _ = vae.encode(np.transpose(dataset.next_batch(), [1, 0, 2]))
+    mus, _ = vae.encode(np.transpose(dataset.next_batch(), [1, 0, 2]))  # (n_steps, batch_size, n_inputs)
     ys, xs = mus.T
 
     print('Means of z variable:', mus)
@@ -71,7 +71,7 @@ def main(args):
     plt.title("round {}: {} in latent space".format(vae.step, 'Toms'))
     kwargs = {'alpha': 0.8}
 
-    labels = [0]*32 + [1]*32 + [2]*32
+    labels = [0]*3 + [1]*3 + [2]*3  # Total hack to label different classes of audio files and mark them on the plot
     #TODO: Store classes in the dataset (maybe with filenames)
     classes = set(labels)
     if classes:

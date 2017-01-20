@@ -2,7 +2,18 @@ import tensorflow as tf
 from nn_models.lstm import ColahLSTM
 import numpy as np
 
+## Test for numpy arrays in graph
 
+p = tf.placeholder(tf.float32, shape=(1,3), name='plac')
+w = tf.Variable(np.ones((1,3)), dtype=tf.float32)
+n = np.ones((1,3))
+z = w + p + n
+
+with tf.Session() as sess:
+    sess.run(tf.initialize_all_variables())
+    print(sess.run(z, feed_dict={p: np.ones((1,3))}))
+
+asdfasdf
 
 #### Assign and assign_add test
 

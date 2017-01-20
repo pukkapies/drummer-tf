@@ -6,6 +6,7 @@ from nn_models.vae_decoders import LSTMDecoder
 from nn_models.vae import VAE
 import tensorflow as tf
 from utils.vectorisation_utils import create_json
+from datetime import datetime
 
 def main(args):
     loaded, json_vector_settings, analysis_type = load_from_dir_root(args.vector_folder)
@@ -19,8 +20,7 @@ def main(args):
     samples_per_batch = args.samples_per_batch
     dataset = DatasetFeed(loaded, batch_size)
 
-    #TODO Figure out a better way to choose the padding value
-    dataset.set_all_data_blocks_to_max_shape(json_vector_settings['mag_normalised_range'][0])
+    dataset.set_all_data_blocks_to_max_shape()  # Creates the dataset.data_masks list
     data_shape = dataset.max_data_shape
 
     n_steps = data_shape[0]
@@ -49,7 +49,10 @@ def main(args):
 
     n_input = n_outputs
 
-    json_settings = {'n_hidden_encoder': n_hidden_encoder,
+    model_datetime = datetime.now().strftime(r"%y%m%d_%H%M")
+
+    json_settings = {'model_datetime': model_datetime,
+                     'n_hidden_encoder': n_hidden_encoder,
                      'n_hidden_decoder': n_hidden_decoder,
                      'prelatent_dense_layers': prelatent_dense_layers,
                      'poslatent_dense_layers': postlatent_dense_layers,
@@ -65,13 +68,18 @@ def main(args):
     shifted_input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size * samples_per_batch, n_input], name="x_shifted")
     print('input_placeholder shape: ', input_placeholder.get_shape())
 
-    build_dict = {'encoder': encoder, 'decoder': decoder, 'n_input': n_input, 'input_placeholder': input_placeholder,
+    build_dict = {'encoder': encoder,
+                  'decoder': decoder,
+                  'n_input': n_input,
+                  'input_placeholder': input_placeholder,
                   'shifted_input_placeholder': shifted_input_placeholder,
-                  'latent_dim': latent_dim, 'dataset': dataset, 'model_folder': model_folder}
+                  'latent_dim': latent_dim,
+                  'dataset': dataset,
+                  'model_folder': model_folder}
 
     vae = VAE(build_dict=build_dict,
               d_hyperparams={'deterministic_warm_up': deterministic_warm_up, 'samples_per_batch': samples_per_batch},
-              log_dir=log_dir)
+              log_dir=log_dir, json_dict=json_settings)
 
     create_json(model_folder + 'network_settings.json', json_settings)
 

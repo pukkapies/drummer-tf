@@ -2,7 +2,7 @@ from datetime import datetime
 import os
 import re
 import sys
-
+import json
 import numpy as np
 import tensorflow as tf
 
@@ -31,7 +31,7 @@ class VAE():
     RESTORE_KEY = "to_restore"
 
     def __init__(self, build_dict=None, d_hyperparams={}, scope='VAE',
-                 save_graph_def=True, log_dir="./log", model_to_restore=False):
+                 save_graph_def=True, log_dir="./log", model_to_restore=False, json_dict=None):
         """(Re)build a symmetric VAE model with given:
             * build_dict (if the model is being built new. The dict should contain the following keys:
                 * encoder (callable object that takes input tensor as argument and returns tensors z_mean, z_log_sigma
@@ -62,6 +62,8 @@ class VAE():
             self.model_folder = build_dict['model_folder']
             self.batch_size = self.dataset.minibatch_size
             self.global_step = tf.Variable(0, trainable=False, name="global_step")
+            self.json_dict = json_dict
+            self.datetime = json_dict['model_datetime']
             # build graph
             self.scope = scope
             handles = self._buildGraph()
@@ -70,9 +72,12 @@ class VAE():
             self.sess.run(tf.initialize_all_variables())
         elif model_to_restore:
             assert not build_dict
-            model_datetime, model_name = os.path.basename(model_to_restore).split("_vae_")  # basename gives just the filename
+            model_folder = '/'.join((model_to_restore.split('/')[:-1]))
+            with open(model_folder + '/network_settings.json') as network_json_file:
+                json_vector_settings_dict = json.load(network_json_file)
+            model_datetime = json_vector_settings_dict['model_datetime']
             self.datetime = "{}_reloaded".format(model_datetime)
-            *model_architecture, _ = re.split("_|-", model_name)
+
             # rebuild graph
             meta_graph = os.path.abspath(model_to_restore)
             tf.train.import_meta_graph(meta_graph + ".meta").restore(
@@ -80,8 +85,6 @@ class VAE():
             handles = self.sess.graph.get_collection(VAE.RESTORE_KEY)
         else:
             raise Exception("VAE must be initialised with either build_dict or model_to_restore")
-
-        self.datetime = datetime.now().strftime(r"%y%m%d_%H%M")
 
         # unpack handles for tensor ops to feed or fetch
         (self.z_mean, self.z_log_sigma, self.x_reconstructed, self.z_, self.x_reconstructed_,
@@ -163,6 +166,7 @@ class VAE():
                     "trainable_variables") if "weights" in var.name]
                 l2_reg = self.lambda_l2_reg * tf.add_n(regularizers)
 
+            #TODO: Apply data masks?
             with tf.name_scope("cost"):
                 # average over minibatch
                 cost = tf.reduce_mean(rec_loss + kl_loss, name="vae_cost")

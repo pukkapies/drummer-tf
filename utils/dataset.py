@@ -13,6 +13,7 @@ class DatasetFeed(object):
         self.num_data_points = len(self.data)
         print("Number of data points loaded: ", self.num_data_points)
         self.max_data_shape, self.ndim = self.get_max_data_shape()
+        print("max_data_shape: {}, ndim: {}".format(self.max_data_shape, self.ndim))
         self.minibatch_size = minibatch_size
         assert self.minibatch_size <= len(self.data), "Data minibatch must be less than the number of data points"
         self.epochs_completed = 0
@@ -46,6 +47,7 @@ class DatasetFeed(object):
         shape = self.data[0].shape
         max_dim_size = [0] * ndim
         for data_object in self.data:
+            print(data_object.shape)
             assert data_object.ndim == ndim, "Data objects do not all have the same rank"
             if assert_all_shapes_are_same:
                 assert data_object.shape == shape, "Data objects are not all the same shape"
@@ -56,12 +58,27 @@ class DatasetFeed(object):
                     max_dim_size[dim] = data_object.shape[dim]
         return tuple(max_dim_size), ndim
 
-    def set_all_data_blocks_to_max_shape(self, pad_with=0):
+    def set_all_data_blocks_to_max_shape(self, pad_with=np.nan):
+        """
+        Makes all data blocks the same shape by padding with pad_with. Stores a list of masks (same length as
+        self.data), where each mask is zero for all entries corresponding to padded values and
+        one otherwise
+        :param pad_with: Value to pad the data blocks
+        :return: None
+        """
         assert type(self.data) == list
+        masks = []
         for i, data_element in enumerate(self.data):
+            # First create the mask
+            mask = np.zeros(self.max_data_shape)
+            slices = [slice(0, data_element.shape[j]) for j in range(self.ndim)]
+            mask[slices] = 1.
+            masks.append(mask)
+
             pad_list = [(0, self.max_data_shape[i] - data_element.shape[i]) for i in range(self.ndim)]
             # Pads the end of each dimension with zeros:
             self.data[i] = np.pad(data_element, pad_list, 'constant', constant_values=(pad_with, pad_with))
+        self.data_masks = masks
 
     def next_batch(self):
         """
