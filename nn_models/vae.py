@@ -10,8 +10,7 @@ import utils.vaeplot as vaeplot
 from utils.functionaltools import composeAll
 from nn_models.layers import Dense, FeedForward
 # from utils.utils import print_
-from tensorflow.python.ops.gradients import AggregationMethod
-from utils.training_utils import GradientAccumulator
+from utils.training_utils import GradientAccumulator, setup_training_ops
 
 
 class VAE():
@@ -70,6 +69,11 @@ class VAE():
             for handle in handles:
                 tf.add_to_collection(VAE.RESTORE_KEY, handle)
             self.sess.run(tf.initialize_all_variables())
+
+            # unpack handles for tensor ops to feed or fetch
+            (self.z_mean, self.z_log_sigma, self.x_reconstructed, self.z_, self.x_reconstructed_,
+             self.cost, self.cost_no_KL, self.kl_loss, self.rec_loss, self.l2_reg,
+             self.apply_gradients_op, self.apply_gradients_op_no_KL) = handles
         elif model_to_restore:
             assert not build_dict
             model_folder = '/'.join((model_to_restore.split('/')[:-1]))
@@ -82,15 +86,17 @@ class VAE():
             meta_graph = os.path.abspath(model_to_restore)
             tf.train.import_meta_graph(meta_graph + ".meta").restore(
                 self.sess, meta_graph)
+
             handles = self.sess.graph.get_collection(VAE.RESTORE_KEY)
             print("Restored handles: ", handles)
+            (self.z_mean, self.z_log_sigma, self.x_reconstructed, self.z_, self.x_reconstructed_,
+             self.cost, self.cost_no_KL, self.kl_loss, self.rec_loss, self.l2_reg,
+             self.apply_gradients_op, self.apply_gradients_op_no_KL) = handles
+
+            self.optimizer, self.gradient_acc, self.gradient_acc_no_KL, apply_gradients_op, apply_gradients_op_no_KL = \
+                setup_training_ops(self.learning_rate, self.cost, self.cost_no_KL, self.global_step)
         else:
             raise Exception("VAE must be initialised with either build_dict or model_to_restore")
-
-        # unpack handles for tensor ops to feed or fetch
-        (self.z_mean, self.z_log_sigma, self.x_reconstructed, self.z_, self.x_reconstructed_,
-         self.cost, self.cost_no_KL, self.kl_loss, self.rec_loss, self.l2_reg,
-         self.apply_gradients_op, self.apply_gradients_op_no_KL) = handles
 
         if save_graph_def: # tensorboard
             self.logger = tf.train.SummaryWriter(log_dir, self.sess.graph)
@@ -180,28 +186,8 @@ class VAE():
             print("Defined loss functions")
 
             # optimization
-            with tf.name_scope("Adam_optimizer"):
-                self.optimizer = tf.train.AdamOptimizer(self.learning_rate)
-                tvars = tf.trainable_variables()
-
-                # Set AggregationMethod to try to avoid crash when computing all gradients simultaneously
-                grads_and_vars = self.optimizer.compute_gradients(cost, tvars,
-                                                             aggregation_method=AggregationMethod.EXPERIMENTAL_TREE)
-                clipped = [(tf.clip_by_value(grad, -5, 5), tvar) # gradient clipping
-                        for grad, tvar in grads_and_vars]
-
-                grads_and_vars_no_KL = self.optimizer.compute_gradients(cost_no_KL, tvars,
-                                                                        aggregation_method=AggregationMethod.EXPERIMENTAL_TREE)
-                clipped_no_KL = [(tf.clip_by_value(grad, -5, 5), tvar) # gradient clipping
-                        for grad, tvar in grads_and_vars_no_KL]
-
-                self.gradient_acc = GradientAccumulator(clipped, self.optimizer)
-                self.gradient_acc_no_KL = GradientAccumulator(clipped_no_KL, self.optimizer)
-
-                apply_gradients_op = self.optimizer.apply_gradients(self.gradient_acc.cumulative_gradient_list(),
-                                                                    global_step=self.global_step, name='minimize_cost')
-                apply_gradients_op_no_KL = self.optimizer.apply_gradients(self.gradient_acc_no_KL.cumulative_gradient_list(),
-                                                                        global_step=self.global_step, name='minimize_cost_no_KL')
+            self.optimizer, self.gradient_acc, self.gradient_acc_no_KL, apply_gradients_op, apply_gradients_op_no_KL = \
+                setup_training_ops(self.learning_rate, cost, cost_no_KL, self.global_step)
             print("Defined training ops")
 
             print([var._variable for var in tf.all_variables()])

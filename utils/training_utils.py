@@ -1,5 +1,7 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.ops.gradients import AggregationMethod
+
 
 class Patience(object):
     """
@@ -118,3 +120,28 @@ class GradientAccumulator(object):
             var_grad_list.append((grad, var))
         return var_grad_list
 
+def setup_training_ops(learning_rate, cost, cost_no_KL, global_step):
+    with tf.name_scope("Adam_optimizer"):
+        optimizer = tf.train.AdamOptimizer(learning_rate)
+        tvars = tf.trainable_variables()
+
+        # Set AggregationMethod to try to avoid crash when computing all gradients simultaneously
+        grads_and_vars = optimizer.compute_gradients(cost, tvars,
+                                                          aggregation_method=AggregationMethod.EXPERIMENTAL_TREE)
+        clipped = [(tf.clip_by_value(grad, -5, 5), tvar)  # gradient clipping
+                   for grad, tvar in grads_and_vars]
+
+        grads_and_vars_no_KL = optimizer.compute_gradients(cost_no_KL, tvars,
+                                                                aggregation_method=AggregationMethod.EXPERIMENTAL_TREE)
+        clipped_no_KL = [(tf.clip_by_value(grad, -5, 5), tvar)  # gradient clipping
+                         for grad, tvar in grads_and_vars_no_KL]
+
+        gradient_acc = GradientAccumulator(clipped, optimizer)
+        gradient_acc_no_KL = GradientAccumulator(clipped_no_KL, optimizer)
+
+        apply_gradients_op = optimizer.apply_gradients(gradient_acc.cumulative_gradient_list(),
+                                                            global_step=global_step, name='minimize_cost')
+        apply_gradients_op_no_KL = optimizer.apply_gradients(gradient_acc_no_KL.cumulative_gradient_list(),
+                                                                  global_step=global_step,
+                                                                  name='minimize_cost_no_KL')
+    return optimizer, gradient_acc, gradient_acc_no_KL, apply_gradients_op, apply_gradients_op_no_KL
