@@ -42,18 +42,12 @@ def main(args):
 
 
     #TODO: Retrieve these from a json
-    # n_hidden_encoder = 700
-    # n_hidden_decoder = 700
     # batch_size = 96
     # latent_dim = 2
     # n_input = n_outputs
 
-    # encoder = LSTMEncoder(n_hidden_encoder, latent_dim)
-    # decoder = LSTMDecoder(n_hidden_decoder, n_outputs, n_steps, output_activation=tf.sigmoid)
-    #
-    # input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size, n_input], name="x")
-
     vae = VAE(model_to_restore=meta_graph)
+    global_step = (meta_graph.split("/")[-1]).split('-')[-1]
 
     # HANDLES
     # vae.x_in, vae.z_mean, vae.z_log_sigma,
@@ -62,13 +56,18 @@ def main(args):
 
     ##################### PLOT IN LATENT SPACE #####################
 
-    mus, _ = vae.encode(np.transpose(dataset.next_batch(), [1, 0, 2]))  # (n_steps, batch_size, n_inputs)
+    next_batch = dataset.next_batch()
+    next_batch = np.concatenate(tuple([next_batch] * 5), axis=0)  ## Total hack to get this to work
+
+    mus, _ = vae.encode(np.transpose(next_batch, [1, 0, 2]))  # (n_steps, batch_size, n_inputs)
+    mus = mus[:9,:]
+
     ys, xs = mus.T
 
     print('Means of z variable:', mus)
 
     plt.figure()
-    plt.title("round {}: {} in latent space".format(vae.step, 'Toms'))
+    plt.title("round {}: {} in latent space".format(global_step, 'Toms'))
     kwargs = {'alpha': 0.8}
 
     labels = [0]*3 + [1]*3 + [2]*3  # Total hack to label different classes of audio files and mark them on the plot
