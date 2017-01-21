@@ -89,6 +89,7 @@ class DatasetFeed(object):
         next_index = self.current_dataset_index + self.minibatch_size
         if next_index <= self.num_data_points:
             self.current_dataset_index = next_index % self.num_data_points  # In case next_index == self.num_data_points
+            self.epochs_completed += 1
             return np.asarray(self.data[current_index: next_index])
         else:
             self.current_dataset_index = next_index % self.num_data_points
