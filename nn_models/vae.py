@@ -83,6 +83,7 @@ class VAE():
             tf.train.import_meta_graph(meta_graph + ".meta").restore(
                 self.sess, meta_graph)
             handles = self.sess.graph.get_collection(VAE.RESTORE_KEY)
+            print("Restored handles: ", handles)
         else:
             raise Exception("VAE must be initialised with either build_dict or model_to_restore")
 
@@ -263,7 +264,7 @@ class VAE():
         a.k.a. inference network q(z|x)
         """
         # np.array -> [float, float]
-        feed_dict = {self.x_in: x}
+        feed_dict = {'x:0': x}
         return self.sess.run([self.z_mean, self.z_log_sigma], feed_dict=feed_dict)
 
     def decode(self, zs=None):
