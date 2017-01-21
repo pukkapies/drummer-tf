@@ -111,6 +111,7 @@ def main(args):
         cost = vae.train(max_iter=args.num_training_steps)
         json_settings['epochs_completed'] = vae.dataset.epochs_completed
         json_settings['cost'] = float(cost)
+        json_settings['global_step'] = int(vae.step)
 
         create_json(model_folder + 'network_settings.json', json_settings)
 

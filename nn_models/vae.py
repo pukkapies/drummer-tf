@@ -7,10 +7,8 @@ import numpy as np
 import tensorflow as tf
 
 import utils.vaeplot as vaeplot
-from utils.functionaltools import composeAll
-from nn_models.layers import Dense, FeedForward
 # from utils.utils import print_
-from utils.training_utils import GradientAccumulator, setup_training_ops
+from utils.training_utils import setup_training_ops
 
 
 class VAE():
@@ -80,6 +78,9 @@ class VAE():
             with open(model_folder + '/network_settings.json') as network_json_file:
                 json_vector_settings_dict = json.load(network_json_file)
             model_datetime = json_vector_settings_dict['model_datetime']
+            self.__dict__.update(VAE.DEFAULTS, **d_hyperparams)
+            self.global_step = tf.Variable(int(json_vector_settings_dict['global_step']),
+                                           trainable=False, name="global_step")
             self.datetime = "{}_reloaded".format(model_datetime)
 
             # rebuild graph
