@@ -89,7 +89,7 @@ class GradientAccumulator(object):
             with tf.variable_scope('grad_acc'):
                 grad = self._var_to_grad[k]
                 print(k, grad.get_shape())
-                acc = tf.Variable(tf.zeros(grad.get_shape()), trainable=False)
+                acc = tf.Variable(tf.zeros(grad.get_shape()), trainable=False, name='accumulated_gradient')
                 var_to_acc_grad[k] = acc
         return var_to_acc_grad
 

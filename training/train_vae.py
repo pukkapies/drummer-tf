@@ -25,8 +25,7 @@ def main(args):
     n_steps = data_shape[0]
     n_outputs = data_shape[1]
 
-    if os.path.exists(model_folder):
-        restore_model = True
+    if os.path.exists(model_folder):  # Resume a previously trained model
         if not os.path.isfile(model_folder + ".meta"):
             raise ValueError("model_folder exists, but supplied path is not a meta file (supply path without '.meta'")
         print("Model folder exists. Resuming training from {}".format(model_folder))
@@ -39,8 +38,22 @@ def main(args):
                                                                      "in the network_settings.json file"
         assert n_steps == json_settings['n_steps'], "Vector n_steps does not match that stored in the " \
                                                                  "network_settings.json file"
-    else:
-        restore_model = False
+        log_dir = model_folder + 'log/'  # For tensorboard
+        analysis_dir = model_folder + 'analysis/'  # For learning curves etc.
+        for dir in [log_dir, analysis_dir]:
+            if not os.path.exists(dir): os.makedirs(dir)
+
+        vae = VAE(model_to_restore=meta_graph, d_hyperparams={'deterministic_warm_up': deterministic_warm_up,
+                                                              'samples_per_batch': samples_per_batch},
+                  log_dir=log_dir, json_dict=json_settings)
+        vae.dataset = dataset
+
+        cost = vae.train(max_iter=args.num_training_steps)
+        json_settings['epochs_completed'] = vae.dataset.epochs_completed
+        json_settings['cost'] = float(cost)
+
+        create_json(model_folder + 'network_settings.json', json_settings)
+    else:  # Create a new model
         if model_folder[-1] != '/':
             model_folder += '/'
         print("Model folder does not exist, training new model.")
@@ -71,27 +84,18 @@ def main(args):
                          'analysis_type': analysis_type,
                          'latent_dim': latent_dim}
 
-    log_dir = model_folder + 'log/'  # For tensorboard
-    analysis_dir = model_folder + 'analysis/'  # For learning curves etc.
-    for dir in [log_dir, analysis_dir]:
-        if not os.path.exists(dir): os.makedirs(dir)
+        input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size * samples_per_batch, n_input],
+                                           name="input")
+        # The following placeholder is for feeding the ground truth to the LSTM decoder - the first input should be zeros
+        shifted_input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size * samples_per_batch, n_input],
+                                                   name="shifted_input")
+        print('input_placeholder shape: ', input_placeholder.get_shape())
 
-    input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size * samples_per_batch, n_input], name="x")
-    # The following placeholder is for feeding the ground truth to the LSTM decoder - the first input should be zeros
-    shifted_input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size * samples_per_batch, n_input], name="x_shifted")
-    print('input_placeholder shape: ', input_placeholder.get_shape())
+        log_dir = model_folder + 'log/'  # For tensorboard
+        analysis_dir = model_folder + 'analysis/'  # For learning curves etc.
+        for dir in [log_dir, analysis_dir]:
+            if not os.path.exists(dir): os.makedirs(dir)
 
-    if restore_model:
-        vae = VAE(model_to_restore=meta_graph, d_hyperparams={'deterministic_warm_up': deterministic_warm_up,
-                                 'samples_per_batch': samples_per_batch},
-                  log_dir=log_dir, json_dict=json_settings)
-
-        cost = vae.train(max_iter=args.num_training_steps)
-        json_settings['epochs_completed'] = vae.dataset.epochs_completed
-        json_settings['cost'] = float(cost)
-
-        create_json(model_folder + 'network_settings.json', json_settings)
-    else:  # New training
         build_dict = {'encoder': encoder,
                       'decoder': decoder,
                       'n_input': n_input,
@@ -114,4 +118,5 @@ def main(args):
         json_settings['global_step'] = int(vae.step)
 
         create_json(model_folder + 'network_settings.json', json_settings)
+
 

@@ -69,18 +69,17 @@ class VAE():
             self.sess.run(tf.initialize_all_variables())
 
             # unpack handles for tensor ops to feed or fetch
-            (self.z_mean, self.z_log_sigma, self.x_reconstructed, self.z_, self.x_reconstructed_,
+            (_1, _2,
+             self.z_mean, self.z_log_sigma, self.x_reconstructed, self.z_, self.x_reconstructed_,
              self.cost, self.cost_no_KL, self.kl_loss, self.rec_loss, self.l2_reg,
-             self.apply_gradients_op, self.apply_gradients_op_no_KL) = handles
+             self.apply_gradients_op, self.apply_gradients_op_no_KL, _3) = handles
         elif model_to_restore:
             assert not build_dict
-            model_folder = '/'.join((model_to_restore.split('/')[:-1]))
-            with open(model_folder + '/network_settings.json') as network_json_file:
+            self.model_folder = '/'.join((model_to_restore.split('/')[:-1]))
+            with open(self.model_folder + '/network_settings.json') as network_json_file:
                 json_vector_settings_dict = json.load(network_json_file)
             model_datetime = json_vector_settings_dict['model_datetime']
             self.__dict__.update(VAE.DEFAULTS, **d_hyperparams)
-            self.global_step = tf.Variable(int(json_vector_settings_dict['global_step']),
-                                           trainable=False, name="global_step")
             self.datetime = "{}_reloaded".format(model_datetime)
 
             # rebuild graph
@@ -90,9 +89,10 @@ class VAE():
 
             handles = self.sess.graph.get_collection(VAE.RESTORE_KEY)
             print("Restored handles: ", handles)
-            (self.z_mean, self.z_log_sigma, self.x_reconstructed, self.z_, self.x_reconstructed_,
+            (self.input_placeholder, self.shifted_input_placeholder,
+             self.z_mean, self.z_log_sigma, self.x_reconstructed, self.z_, self.x_reconstructed_,
              self.cost, self.cost_no_KL, self.kl_loss, self.rec_loss, self.l2_reg,
-             self.apply_gradients_op, self.apply_gradients_op_no_KL) = handles
+             self.apply_gradients_op, self.apply_gradients_op_no_KL, self.global_step) = handles
 
             self.optimizer, self.gradient_acc, self.gradient_acc_no_KL, apply_gradients_op, apply_gradients_op_no_KL = \
                 setup_training_ops(self.learning_rate, self.cost, self.cost_no_KL, self.global_step)
@@ -118,16 +118,15 @@ class VAE():
     def _buildGraph(self):
         with tf.variable_scope(self.scope) as graph_scope:
             # Both will have size (n_steps, batch_size * samples_per_batch, n_inputs)
-            x_in = self.input_placeholder
-            x_shifted = self.shifted_input_placeholder
-            assert x_in.get_shape()[1] % self.samples_per_batch == 0
-            assert x_shifted.get_shape()[1] % self.samples_per_batch == 0
+            assert self.input_placeholder.get_shape()[1] % self.samples_per_batch == 0
+            assert self.shifted_input_placeholder.get_shape()[1] % self.samples_per_batch == 0
 
-            n_steps = x_in.get_shape()[0].value  # To convert to int (otherwise this returns Dimension object)
+            n_steps = self.input_placeholder.get_shape()[0].value  # To convert to int (otherwise this returns Dimension object)
 
-            print("x_in, x_shifted shape: ", x_in.get_shape(), x_shifted.get_shape())
+            print("input, shifted_input shape: ", self.input_placeholder.get_shape(),
+                  self.shifted_input_placeholder.get_shape())
 
-            z_mean, z_log_sigma = self.encoder(x_in)  # (batch_size * samples_per_batch, latent_dim)
+            z_mean, z_log_sigma = self.encoder(self.input_placeholder)  # (batch_size * samples_per_batch, latent_dim)
 
             print("Finished setting up encoder")
             print([var._variable for var in tf.all_variables()])
@@ -139,25 +138,25 @@ class VAE():
             z = self.sampleGaussian(z_mean, z_log_sigma)  # Tensor z evaluates to different samples each time
 
             # decoding / "generative": p(x|z)
-            # x_reconstructed is (n_steps, batch_size * samples_per_batch, n_outputs)
-            x_reconstructed = self.decoder(z, inputs=x_shifted)  # Feed the ground truth to the decoder
-            # x_reconstructed = self.decoder(z_mean, inputs=x_shifted)  # When KL cost is eliminated, can just use the mean
+            # reconstruction is (n_steps, batch_size * samples_per_batch, n_outputs)
+            reconstruction = self.decoder(z, inputs=self.shifted_input_placeholder)  # Feed the ground truth to the decoder
+            # reconstruction = self.decoder(z_mean, inputs=x_shifted)  # When KL cost is eliminated, can just use the mean
 
-            # Reshape x_reconstructed into (n_steps, samples_per_batch, batch_size, n_inputs)
-            x_reconstructed = tf.reshape(x_reconstructed, [n_steps, self.samples_per_batch, self.batch_size, self.n_input])
-            x_in_reshaped = tf.reshape(x_in, [n_steps, self.samples_per_batch, self.batch_size, self.n_input])
+            # Reshape reconstruction into (n_steps, samples_per_batch, batch_size, n_inputs)
+            reconstruction = tf.reshape(reconstruction, [n_steps, self.samples_per_batch, self.batch_size, self.n_input])
+            input_reshaped = tf.reshape(self.input_placeholder, [n_steps, self.samples_per_batch, self.batch_size, self.n_input])
 
             print("Finished setting up decoder")
             print([var._variable for var in tf.all_variables()])
 
-            # reconstruction loss: mismatch b/w x & x_reconstructed
+            # reconstruction loss: mismatch b/w x & reconstruction
             # binary cross-entropy -- assumes x & p(x|z) are iid Bernoullis
 
-            print('x_reconstructed shape: ', x_reconstructed.get_shape())  # (n_steps, sample_per_batch, batch_size, n_outputs)
-            print('x_in_reshaped shape: ', x_in_reshaped.get_shape())  # (n_steps, sample_per_batch, batch_size, n_outputs)
+            print('reconstruction shape: ', reconstruction.get_shape())  # (n_steps, sample_per_batch, batch_size, n_outputs)
+            print('input_reshaped shape: ', input_reshaped.get_shape())  # (n_steps, sample_per_batch, batch_size, n_outputs)
 
-            # rec_loss = VAE.crossEntropy(x_reconstructed, x_in)
-            rec_loss = tf.reduce_mean((x_reconstructed - x_in_reshaped)**2, reduction_indices=[0, 1, 3])  # Reduce everything but the batch_size
+            # rec_loss = VAE.crossEntropy(reconstruction, x_in)
+            rec_loss = tf.reduce_mean((reconstruction - input_reshaped)**2, reduction_indices=[0, 1, 3])  # Reduce everything but the batch_size
             print('rec_loss shape:', rec_loss.get_shape())
 
             # Kullback-Leibler divergence: mismatch b/w approximate vs. imposed/true posterior
@@ -202,9 +201,10 @@ class VAE():
             graph_scope.reuse_variables()  # No new variables should be created from this point on
             x_reconstructed_ = self.decoder(z_)
 
-            return (z_mean, z_log_sigma, x_reconstructed,  # Removed dropout from second place
+            return (self.input_placeholder, self.shifted_input_placeholder, z_mean, z_log_sigma,
+                    reconstruction,  # Removed dropout from second place
                     z_, x_reconstructed_, cost, cost_no_KL, kl_loss, rec_loss, l2_reg,
-                    apply_gradients_op, apply_gradients_op_no_KL)
+                    apply_gradients_op, apply_gradients_op_no_KL, self.global_step)
 
     def sampleGaussian(self, mu, log_sigma):
         """(Differentiably!) draw sample from Gaussian with given shape, subject to random noise epsilon"""
@@ -251,7 +251,7 @@ class VAE():
         a.k.a. inference network q(z|x)
         """
         # np.array -> [float, float]
-        feed_dict = {'x:0': x}
+        feed_dict = {self.input_placeholder: x}
         return self.sess.run([self.z_mean, self.z_log_sigma], feed_dict=feed_dict)
 
     def decode(self, zs=None):
@@ -278,7 +278,6 @@ class VAE():
             self.saver = tf.train.Saver(tf.all_variables())
 
         # Get ops for gradient updates
-
         update_gradients_ops = self.gradient_acc.update_gradients_ops()
         clear_gradients_ops = self.gradient_acc.clear_gradients()
 
