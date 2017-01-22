@@ -58,7 +58,7 @@ class DatasetFeed(object):
                     max_dim_size[dim] = data_object.shape[dim]
         return tuple(max_dim_size), ndim
 
-    def set_all_data_blocks_to_max_shape(self, pad_with=np.nan):
+    def set_all_data_blocks_to_max_shape(self, pad_with=0.):
         """
         Makes all data blocks the same shape by padding with pad_with. Stores a list of masks (same length as
         self.data), where each mask is zero for all entries corresponding to padded values and
