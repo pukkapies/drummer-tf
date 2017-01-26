@@ -310,7 +310,8 @@ class VAE():
 
                 # Reverse the input to the encoder in time!
                 x = x[::-1, :, :]
-                assert x[10, 10, 10] == x_shifted[-10 , 10, 10]
+                assert x[10, 10, 10] == x_shifted[-10, 10, 10]
+                assert x[4, 24, 2] == x_shifted[-4, 24, 2]
 
                 assert x.shape == x_shifted.shape
 

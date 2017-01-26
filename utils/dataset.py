@@ -31,7 +31,6 @@ class DatasetFeed(object):
         """
         Gets the max shape (independently for each dimension) of each data element.
         Asserts the number of dimensions are the same for each data element.
-        :param data: List of data elements
         :param axes: List of axes to normalise. If None, all axes are normalised.
         :param assert_all_shapes_are_same: Whether to assert that all shapes are the same
         :return: Tuple: Each element of the tuple is the maximum size over all data elements
@@ -80,21 +79,23 @@ class DatasetFeed(object):
             self.data[i] = np.pad(data_element, pad_list, 'constant', constant_values=(pad_with, pad_with))
         self.data_masks = masks
 
-    def next_batch(self):
+    def next_batch(self, shuffle=True):
         """
         Returns the next minibatch
         :return: np.ndarray, shape (batch_size, data_shape)
         """
         current_index = self.current_dataset_index
         next_index = self.current_dataset_index + self.minibatch_size
-        if next_index <= self.num_data_points:
-            self.current_dataset_index = next_index % self.num_data_points  # In case next_index == self.num_data_points
-            self.epochs_completed += 1
+        if next_index < self.num_data_points:  # next_index still points within the range of data points
+            self.current_dataset_index = next_index
             return np.asarray(self.data[current_index: next_index])
         else:
             self.current_dataset_index = next_index % self.num_data_points
             self.epochs_completed += 1
-            return np.asarray(self.data[current_index:] + self.data[:next_index % self.num_data_points])
+            first_sub_batch = self.data[current_index:]  # The remainder of the current set of data points
+            if shuffle:
+                shuffle(self.data)
+            return np.asarray(first_sub_batch + self.data[:self.current_dataset_index])
 
 
 class DatasetPreloaded(object):
