@@ -19,15 +19,28 @@ def main(args):
     samples_per_batch = args.samples_per_batch
     dataset = DatasetFeed(loaded, batch_size)
 
+    # # Reverse the data in time, so we will feed the reverse-time data into the encoder
+    # loaded_reversed = []
+    # for sublist in loaded:
+    #     sublist_reversed = []
+    #     for arr in sublist:
+    #         arr_reversed = arr[::-1, :]  # Change the direction in the first dimension - this is time
+    #         sublist_reversed.append(arr_reversed)
+    #     loaded_reversed.append(sublist_reversed)
+    #
+    # dataset_reversed = DatasetFeed(loaded_reversed, batch_size)
+
     dataset.set_all_data_blocks_to_max_shape()  # Creates the dataset.data_masks list
-    data_shape = dataset.max_data_shape
+    # dataset_reversed.set_all_data_blocks_to_max_shape()
+
+    data_shape = dataset.max_data_shape  # Same for normal and reversed
 
     n_steps = data_shape[0]
     n_outputs = data_shape[1]
 
     if os.path.exists(model_folder):  # Resume a previously trained model
         if not os.path.isfile(model_folder + ".meta"):
-            raise ValueError("model_folder exists, but supplied path is not a meta file (supply path without '.meta'")
+            raise ValueError("Model_folder exists, but supplied path is not a meta file (supply path without '.meta')")
         print("Model folder exists. Resuming training from {}".format(model_folder))
         meta_graph = model_folder
         model_folder = '/'.join(meta_graph.split('/')[:-1]) + '/'
@@ -42,7 +55,6 @@ def main(args):
         analysis_dir = model_folder + 'analysis/'  # For learning curves etc.
         for dir in [log_dir, analysis_dir]:
             if not os.path.exists(dir): os.makedirs(dir)
-
         vae = VAE(model_to_restore=meta_graph, d_hyperparams={'deterministic_warm_up': deterministic_warm_up,
                                                               'samples_per_batch': samples_per_batch},
                   log_dir=log_dir, json_dict=json_settings)

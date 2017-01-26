@@ -14,7 +14,7 @@ from utils.vectorisation_utils import create_json, InvalidPathError
 FOLDER_LIST = ['./rock_kit_TOMS']
 OUTPUT_FOLDER = './stft/vectors/rock_kit_TOMS'
 PLOT_FOLDER = './stft/plots'
-SAMPLE_RATE = 44100 # Assume all files to be loaded have the same sample rate, or raise an error
+SAMPLE_RATE = 44100  # Assume all files to be loaded have the same sample rate, or raise an error
 
 # STFT parameters
 N = 512

@@ -11,6 +11,12 @@ filenames_list_dict = {'stft': ['mag.npy', 'phase.npy'],
 class InvalidPathError(Exception): pass
 
 def load_npy(filepath, filenames_list):
+    """
+    Reads the relevant .npy files in a folder and returns them in a list
+    :param filepath: Path to folder containing .npy files
+    :param filenames_list: List of .npy filenames, as in the filenames_list_dict above
+    :return: List of numpy arrays, one for each of the filenames in the filenames_list
+    """
     if not os.path.exists(filepath):
         raise InvalidPathError("{} does not exist!".format(filepath))
     data = []
