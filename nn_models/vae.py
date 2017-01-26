@@ -75,7 +75,7 @@ class VAE():
              self.apply_gradients_op, self.apply_gradients_op_no_KL, _3) = handles
         elif model_to_restore:
             assert not build_dict
-            self.model_folder = '/'.join((model_to_restore.split('/')[:-1]))
+            self.model_folder = '/'.join((model_to_restore.split('/')[:-1])) + '/'
             with open(self.model_folder + '/network_settings.json') as network_json_file:
                 json_vector_settings_dict = json.load(network_json_file)
             model_datetime = json_vector_settings_dict['model_datetime']
@@ -84,8 +84,7 @@ class VAE():
 
             # rebuild graph
             meta_graph = os.path.abspath(model_to_restore)
-            tf.train.import_meta_graph(meta_graph + ".meta").restore(
-                self.sess, meta_graph)
+            tf.train.import_meta_graph(meta_graph + ".meta").restore(self.sess, meta_graph)
 
             handles = self.sess.graph.get_collection(VAE.RESTORE_KEY)
             print("Restored handles: ", handles)
@@ -99,7 +98,7 @@ class VAE():
         else:
             raise Exception("VAE must be initialised with either build_dict or model_to_restore")
 
-        if save_graph_def: # tensorboard
+        if save_graph_def:  # tensorboard
             self.logger = tf.train.SummaryWriter(log_dir, self.sess.graph)
 
     @property
@@ -272,10 +271,7 @@ class VAE():
         # np.array -> np.array
         return self.decode(self.sampleGaussian(*self.encode(x)))
 
-    def train(self, max_iter=np.inf, max_epochs=np.inf,
-              verbose=True, save=True):
-        if save:
-            self.saver = tf.train.Saver(tf.all_variables())
+    def train(self, max_iter=np.inf, max_epochs=np.inf, verbose=True, save=True):
 
         # Get ops for gradient updates
         update_gradients_ops = self.gradient_acc.update_gradients_ops()
@@ -283,6 +279,19 @@ class VAE():
 
         update_gradients_ops_no_KL = self.gradient_acc_no_KL.update_gradients_ops()
         clear_gradients_ops_no_KL = self.gradient_acc_no_KL.clear_gradients()
+
+        # # TEMPORARY HACK - shouldn't be needed now that the saver is initialized after the gradient ops are defined
+        # uninitialized_vars = []
+        # for var in tf.all_variables():
+        #     try:
+        #         self.sess.run(var)
+        #     except tf.errors.FailedPreconditionError:
+        #         uninitialized_vars.append(var)
+        #
+        # self.sess.run(tf.initialize_variables(uninitialized_vars))
+
+        if save:
+            self.saver = tf.train.Saver(tf.all_variables())
 
         outdir = self.model_folder
         self.accumulated_cost = 0
@@ -298,6 +307,10 @@ class VAE():
                 total_batch_size = x.shape[1]  # batch_size * samples_per_batch
                 n_inputs = x.shape[2]
                 x_shifted = np.concatenate((np.zeros((1, total_batch_size, n_inputs)), x[0:-1, :, :]), axis=0)
+
+                # Reverse the input to the encoder in time!
+                x = x[::-1, :, :]
+                assert x[10, 10, 10] == x_shifted[-10 , 10, 10]
 
                 assert x.shape == x_shifted.shape
 
