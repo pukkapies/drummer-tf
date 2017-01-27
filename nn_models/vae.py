@@ -28,7 +28,7 @@ class VAE():
     RESTORE_KEY = "to_restore"
 
     def __init__(self, build_dict=None, d_hyperparams={}, scope='VAE',
-                 save_graph_def=True, log_dir="./log", model_to_restore=False, json_dict=None):
+                 save_graph_def=True, log_dir="./log/", analysis_dir="./analysis/", model_to_restore=False, json_dict=None):
         """(Re)build a symmetric VAE model with given:
             * build_dict (if the model is being built new. The dict should contain the following keys:
                 * encoder (callable object that takes input tensor as argument and returns tensors z_mean, z_log_sigma
@@ -41,6 +41,8 @@ class VAE():
             * model_to_restore (filename of model to generate from (provide filename, without .meta)
         """
         self.sess = tf.Session()
+        self.__dict__.update(VAE.DEFAULTS, **d_hyperparams)
+        self.analysis_folder = analysis_dir
 
         if build_dict:
             assert not model_to_restore
@@ -52,7 +54,7 @@ class VAE():
             self.decoder = build_dict['decoder']
             self.input_placeholder = build_dict['input_placeholder']
             self.shifted_input_placeholder = build_dict['shifted_input_placeholder']
-            self.__dict__.update(VAE.DEFAULTS, **d_hyperparams)
+
             self.n_input = build_dict['n_input']
             self.latent_dim = build_dict['latent_dim']
             self.dataset = build_dict['dataset']
@@ -79,7 +81,6 @@ class VAE():
             with open(self.model_folder + '/network_settings.json') as network_json_file:
                 json_vector_settings_dict = json.load(network_json_file)
             model_datetime = json_vector_settings_dict['model_datetime']
-            self.__dict__.update(VAE.DEFAULTS, **d_hyperparams)
             self.datetime = "{}_reloaded".format(model_datetime)
 
             # rebuild graph
@@ -293,6 +294,10 @@ class VAE():
         if save:
             self.saver = tf.train.Saver(tf.all_variables())
 
+        total_cost_history = np.array([])
+        KL_cost_history = np.array([])
+        reconstruction_cost_history = np.array([])
+
         outdir = self.model_folder
         self.accumulated_cost = 0
         now = datetime.now().isoformat()[11:]
@@ -346,8 +351,7 @@ class VAE():
                     self.sess.run(clear_gradients_ops)
 
                 print("Step {}-> cost for this minibatch: {}".format(i, cost))
-                print("   minibatch KL_cost = {}, reconst = {}".format(np.mean(kl_loss),
-                                                                           np.mean(rec_loss)))
+                print("   minibatch KL_cost = {}, reconst = {}".format(np.mean(kl_loss), np.mean(rec_loss)))
 
                 # print("Gradients should be zero: ")
                 # print([(k, self.sess.run(self.gradient_acc._var_to_accum_grad[k], feed_dict=feed_dict))
@@ -357,8 +361,20 @@ class VAE():
                 #     print("Step {}-> cost for this minibatch: {}".format(i, cost))
                 #     print("   minibatch KL_cost = {}, reconst = {}".format(np.mean(kl_loss),
                 #                                                            np.mean(rec_loss)))
+
+                total_cost_history = np.hstack((total_cost_history, np.array([float(cost)])))
+                KL_cost_history = np.hstack((KL_cost_history, np.array([float(kl_loss)])))
+                reconstruction_cost_history = np.hstack((reconstruction_cost_history, np.array([float(rec_loss)])))
+
                 if i % 500 == 0:
+                    # SAVE ALL MODEL PARAMETERS
                     self.save_model(outdir)
+
+                if i % 5 == 0:
+                    # SAVE COSTS FOR LEARNING CURVES
+                    np.save(self.analysis_folder + 'total_cost.npy', total_cost_history)
+                    np.save(self.analysis_folder + 'KL_cost.npy', KL_cost_history)
+                    np.save(self.analysis_folder + 'reconstruction_cost.npy', reconstruction_cost_history)
 
                 if i >= max_iter or self.dataset.epochs_completed >= max_epochs:
                     print("final avg cost (@ step {} = epoch {}): {}".format(

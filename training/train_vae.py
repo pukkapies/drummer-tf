@@ -57,7 +57,7 @@ def main(args):
             if not os.path.exists(dir): os.makedirs(dir)
         vae = VAE(model_to_restore=meta_graph, d_hyperparams={'deterministic_warm_up': deterministic_warm_up,
                                                               'samples_per_batch': samples_per_batch},
-                  log_dir=log_dir, json_dict=json_settings)
+                  log_dir=log_dir, analysis_dir=analysis_dir, json_dict=json_settings)
         vae.dataset = dataset
 
         cost = vae.train(max_iter=args.num_training_steps)
@@ -120,7 +120,7 @@ def main(args):
         vae = VAE(build_dict=build_dict,
                   d_hyperparams={'deterministic_warm_up': deterministic_warm_up,
                                  'samples_per_batch': samples_per_batch},
-                  log_dir=log_dir, json_dict=json_settings)
+                  log_dir=log_dir, analysis_dir=analysis_dir, json_dict=json_settings)
 
         create_json(model_folder + 'network_settings.json', json_settings)
 

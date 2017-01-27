@@ -1,4 +1,5 @@
 import numpy as np
+from random import shuffle
 
 
 class DatasetFeed(object):
@@ -79,7 +80,7 @@ class DatasetFeed(object):
             self.data[i] = np.pad(data_element, pad_list, 'constant', constant_values=(pad_with, pad_with))
         self.data_masks = masks
 
-    def next_batch(self, shuffle=True):
+    def next_batch(self, shuffle_after_every_epoch=True):
         """
         Returns the next minibatch
         :return: np.ndarray, shape (batch_size, data_shape)
@@ -93,7 +94,7 @@ class DatasetFeed(object):
             self.current_dataset_index = next_index % self.num_data_points
             self.epochs_completed += 1
             first_sub_batch = self.data[current_index:]  # The remainder of the current set of data points
-            if shuffle:
+            if shuffle_after_every_epoch:
                 shuffle(self.data)
             return np.asarray(first_sub_batch + self.data[:self.current_dataset_index])
 
