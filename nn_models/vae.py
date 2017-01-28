@@ -113,6 +113,7 @@ class VAE():
             outfile = outdir + 'model'
             self.saver.save(self.sess, outfile, global_step=self.step)
         except AttributeError:
+            print("Failed to save model at step {}".format(self.step))
             return
 
     def _buildGraph(self):
@@ -366,7 +367,7 @@ class VAE():
                 KL_cost_history = np.hstack((KL_cost_history, np.array([float(kl_loss)])))
                 reconstruction_cost_history = np.hstack((reconstruction_cost_history, np.array([float(rec_loss)])))
 
-                if i % 500 == 0:
+                if i % 250 == 0:
                     # SAVE ALL MODEL PARAMETERS
                     self.save_model(outdir)
 
