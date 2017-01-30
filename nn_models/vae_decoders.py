@@ -6,7 +6,7 @@ from tensorflow.python.ops import variable_scope as vs
 from utils.functionaltools import composeAll
 
 
-class FeedForwardDecoder(object):
+class VAE_FeedForwardDecoder(object):
 
     def __init__(self, architecture, nonlinearity, squashing):
         """
@@ -32,7 +32,7 @@ class FeedForwardDecoder(object):
         return x_reconstructed
 
 
-class LSTMDecoder(object):
+class VAE_LSTMDecoder(object):
     def __init__(self, n_LSTM_hidden, postlatent_dense_layers, n_outputs, n_steps=None, output_activation=tf.tanh):
         """
         Sets up an LSTM encode for the VAE

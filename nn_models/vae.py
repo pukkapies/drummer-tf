@@ -8,7 +8,7 @@ import tensorflow as tf
 
 import utils.vaeplot as vaeplot
 # from utils.utils import print_
-from utils.training_utils import setup_training_ops
+from utils.training_utils import setup_VAE_training_ops
 
 
 class VAE():
@@ -95,7 +95,7 @@ class VAE():
              self.apply_gradients_op, self.apply_gradients_op_no_KL, self.global_step) = handles
 
             self.optimizer, self.gradient_acc, self.gradient_acc_no_KL, apply_gradients_op, apply_gradients_op_no_KL = \
-                setup_training_ops(self.learning_rate, self.cost, self.cost_no_KL, self.global_step)
+                setup_VAE_training_ops(self.learning_rate, self.cost, self.cost_no_KL, self.global_step)
         else:
             raise Exception("VAE must be initialised with either build_dict or model_to_restore")
 
@@ -188,7 +188,7 @@ class VAE():
 
             # optimization
             self.optimizer, self.gradient_acc, self.gradient_acc_no_KL, apply_gradients_op, apply_gradients_op_no_KL = \
-                setup_training_ops(self.learning_rate, cost, cost_no_KL, self.global_step)
+                setup_VAE_training_ops(self.learning_rate, cost, cost_no_KL, self.global_step)
             print("Defined training ops")
 
             print([var._variable for var in tf.all_variables()])

@@ -5,7 +5,7 @@ from nn_models.initialisers import wbVars_Xavier
 from utils.functionaltools import composeAll
 
 
-class FeedForwardEncoder(object):
+class VAE_FeedForwardEncoder(object):
 
     def __init__(self, architecture, nonlinearity):
         """
@@ -33,7 +33,7 @@ class FeedForwardEncoder(object):
         return z_mean, z_log_sigma
 
 
-class LSTMEncoder(object):
+class VAE_LSTMEncoder(object):
 
     def __init__(self, n_LSTM_hidden, prelatent_dense_layers, latent_size, initial_state=None):
         """

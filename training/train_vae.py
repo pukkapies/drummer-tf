@@ -1,8 +1,8 @@
 from utils.vectorisation_utils import load_from_dir_root
 from utils.dataset import DatasetFeed
 import os
-from nn_models.vae_encoders import LSTMEncoder
-from nn_models.vae_decoders import LSTMDecoder
+from nn_models.vae_encoders import VAE_LSTMEncoder
+from nn_models.vae_decoders import VAE_LSTMDecoder
 from nn_models.vae import VAE
 import tensorflow as tf
 from utils.vectorisation_utils import create_json
@@ -77,8 +77,8 @@ def main(args):
         n_hidden_decoder = args.lstm_decoder_hidden_units[0]
         postlatent_dense_layers = args.postlatent_dense_layers
 
-        encoder = LSTMEncoder(n_hidden_encoder, prelatent_dense_layers, latent_dim)
-        decoder = LSTMDecoder(n_hidden_decoder, postlatent_dense_layers, n_outputs, n_steps, output_activation=tf.sigmoid)
+        encoder = VAE_LSTMEncoder(n_hidden_encoder, prelatent_dense_layers, latent_dim)
+        decoder = VAE_LSTMDecoder(n_hidden_decoder, postlatent_dense_layers, n_outputs, n_steps=n_steps, output_activation=tf.sigmoid)
 
         n_input = n_outputs
 

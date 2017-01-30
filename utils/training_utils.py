@@ -120,7 +120,7 @@ class GradientAccumulator(object):
             var_grad_list.append((grad, var))
         return var_grad_list
 
-def setup_training_ops(learning_rate, cost, cost_no_KL, global_step):
+def setup_VAE_training_ops(learning_rate, cost, cost_no_KL, global_step):
     with tf.name_scope("Adam_optimizer"):
         optimizer = tf.train.AdamOptimizer(learning_rate)
         tvars = tf.trainable_variables()
@@ -145,3 +145,20 @@ def setup_training_ops(learning_rate, cost, cost_no_KL, global_step):
                                                                   global_step=global_step,
                                                                   name='minimize_cost_no_KL')
     return optimizer, gradient_acc, gradient_acc_no_KL, apply_gradients_op, apply_gradients_op_no_KL
+
+def setup_AE_training_ops(learning_rate, cost, global_step):
+    with tf.name_scope("Adam_optimizer"):
+        optimizer = tf.train.AdamOptimizer(learning_rate)
+        tvars = tf.trainable_variables()
+
+        # Set AggregationMethod to try to avoid crash when computing all gradients simultaneously
+        grads_and_vars = optimizer.compute_gradients(cost, tvars,
+                                                          aggregation_method=AggregationMethod.EXPERIMENTAL_TREE)
+        clipped = [(tf.clip_by_value(grad, -5, 5), tvar)  # gradient clipping
+                   for grad, tvar in grads_and_vars]
+
+        gradient_acc = GradientAccumulator(clipped, optimizer)
+
+        apply_gradients_op = optimizer.apply_gradients(gradient_acc.cumulative_gradient_list(),
+                                                            global_step=global_step, name='minimize_cost')
+    return optimizer, gradient_acc, apply_gradients_op

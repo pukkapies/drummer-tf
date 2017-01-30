@@ -47,7 +47,7 @@ class DatasetFeed(object):
         shape = self.data[0].shape
         max_dim_size = [0] * ndim
         for data_object in self.data:
-            print(data_object.shape)
+            # print(data_object.shape)
             assert data_object.ndim == ndim, "Data objects do not all have the same rank"
             if assert_all_shapes_are_same:
                 assert data_object.shape == shape, "Data objects are not all the same shape"

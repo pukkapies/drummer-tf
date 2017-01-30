@@ -21,15 +21,15 @@ class SimpleLSTM(object):
         self.lstm_activation = lstm_activation
         self.initializer = initializer
 
-    def __call__(self, input, init_state):
+    def __call__(self, inputs, init_state):
         """
         Calls the RNN model, computing outputs for given inputs and initial state
-        :param input: Tensor of shape (n_steps, batch_size, n_inputs)
+        :param inputs: Tensor of shape (n_steps, batch_size, n_inputs)
         :param init_state: Initial state. Tuple of 2 tensors of shape (batch_size, n_hidden). Can be None,
-                            in which case the initial state is set to zero
+                            in which case the initial state is set to zero. Order is (cell_state, hidden_state)
         :return: outputs (shape is (n_steps, batch_size, n_outputs)), final state
         """
-        assert len(input.get_shape()) == 3
+        assert len(inputs.get_shape()) == 3
         # n_steps = input.get_shape()[0]
         # n_input = input.get_shape()[2]
         # print('n_steps', n_steps)
@@ -38,7 +38,7 @@ class SimpleLSTM(object):
 
         # Prepare data shape to match `rnn` function requirements
         # Required shape: 'n_steps' tensors list of shape (batch_size, n_input)
-        x = tf.unpack(input)
+        x = tf.unpack(inputs)
         # print('after splitting, x length and shape: ', [len(x), x[0].get_shape()])
         # print('state: ', init_state)
 

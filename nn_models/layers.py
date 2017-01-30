@@ -3,7 +3,7 @@ from utils.functionaltools import composeAll
 
 
 class Dense():
-    """Fully-connected layer"""
+    """Fully-connected layer. Can be applied to Tensors of shape ("""
     def __init__(self, scope="dense_layer", size=None, dropout=1.,
                  nonlinearity=tf.identity, initialiser=None):
         # (str, int, (float | tf.Tensor), tf.op)
