@@ -66,7 +66,7 @@ class Autoencoder():
 
             # unpack handles for tensor ops to feed or fetch
             (_1, _2,  # input_placeholder, shifted_input_placeholder
-             self.encoding, self.x_reconstructed, self.encoding_, self.x_reconstructed_,
+             self.encoding_cell, self.encoding_hidden, self.x_reconstructed, self.encoding_cell_, self.encoding_hidden_, self.x_reconstructed_,
              self.cost, self.rec_loss, self.l2_reg, self.apply_gradients_op, _3) = handles  # Last one is global_step
         elif model_to_restore:
             assert not build_dict
@@ -83,8 +83,8 @@ class Autoencoder():
             handles = self.sess.graph.get_collection(Autoencoder.RESTORE_KEY)
             print("Restored handles: ", handles)
             (self.input_placeholder, self.shifted_input_placeholder,
-             self.encoding, self.x_reconstructed, self.encoding_, self.x_reconstructed_,
-             self.cost, self.rec_loss, self.l2_reg, self.apply_gradients_op, self.global_step) = handles
+             self.encoding_cell, self.encoding_hidden, self.x_reconstructed, self.encoding_cell_, self.encoding_hidden_,
+             self.x_reconstructed_, self.cost, self.rec_loss, self.l2_reg, self.apply_gradients_op, self.global_step) = handles
 
             self.optimizer, self.gradient_acc, apply_gradients_op = \
                 setup_AE_training_ops(self.learning_rate, self.cost, self.global_step)
@@ -159,13 +159,13 @@ class Autoencoder():
 
             # ops to directly explore encoding space
             with tf.name_scope("encoding_in"):
-                encoding_ = rnn_cell.LSTMStateTuple(tf.placeholder(tf.float32, shape=[1, self.decoder.n_LSTM_hidden]),
-                                                    tf.placeholder(tf.float32, shape=[1, self.decoder.n_LSTM_hidden]))
+                encoding_ = rnn_cell.LSTMStateTuple(tf.placeholder(tf.float32, shape=[1, self.decoder.n_LSTM_hidden], name="cell_encoding_in"),
+                                                    tf.placeholder(tf.float32, shape=[1, self.decoder.n_LSTM_hidden], name='hidden_encoding_in'))
             graph_scope.reuse_variables()  # No new variables should be created from this point on
             x_reconstructed_ = self.decoder(encoding_)
 
-            return (self.input_placeholder, self.shifted_input_placeholder, encoding, reconstruction,  # Removed dropout from second place
-                    encoding_, x_reconstructed_, cost, rec_loss, l2_reg, apply_gradients_op, self.global_step)
+            return (self.input_placeholder, self.shifted_input_placeholder, encoding[0], encoding[1], reconstruction,  # Removed dropout from second place
+                    encoding_[0], encoding_[1], x_reconstructed_, cost, rec_loss, l2_reg, apply_gradients_op, self.global_step)
 
     @staticmethod
     def crossEntropy(obs, actual, offset=1e-7):
@@ -197,13 +197,13 @@ class Autoencoder():
         """
         # np.array -> [float, float]
         feed_dict = {self.input_placeholder: x}
-        return self.sess.run(self.encoding, feed_dict=feed_dict)
+        return self.sess.run(rnn_cell.LSTMStateTuple(self.encoding_cell, self.encoding_hidden), feed_dict=feed_dict)
 
     def decode(self, encoding):
         """Generative decoder from latent space to reconstructions of input space;
         a.k.a. generative network p(x|z)
         """
-        feed_dict = {self.encoding_: encoding}
+        feed_dict = {self.encoding_cell_: encoding[0], self.encoding_hidden_: encoding[1]}
         return self.sess.run(self.x_reconstructed_, feed_dict=feed_dict)
 
     def ae(self, x):
