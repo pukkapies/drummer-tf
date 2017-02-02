@@ -143,9 +143,9 @@ def main(args):
                          analysis_type + '_settings': json_vector_settings,
                          'analysis_type': analysis_type}
 
-        input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size, n_input], name="input")
+        input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, None, n_input], name="input")
         # The following placeholder is for feeding the ground truth to the LSTM decoder - the first input should be zeros
-        shifted_input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size, n_input], name="shifted_input")
+        shifted_input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, None, n_input], name="shifted_input")
         print('input_placeholder shape: ', input_placeholder.get_shape())
 
         log_dir = model_folder + 'log/'  # For tensorboard

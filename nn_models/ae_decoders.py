@@ -61,14 +61,13 @@ class AE_LSTMDecoder(object):
         # encoding / recognition model q(z|x)
         c, h = encoding
 
-        batch_size = c.get_shape()[0]
-        assert h.get_shape()[0]==batch_size, "Batch size for hidden and cell states do not match"
+        # batch_size = c.get_shape()[0]
+        # assert h.get_shape()[0]==batch_size, "Batch size for hidden and cell states do not match"
 
         if inputs is not None:
             inputs_n_steps = inputs.get_shape()[0]
             inputs_batch_size = inputs.get_shape()[1]
             inputs_n_inputs = inputs.get_shape()[2]
-            assert batch_size == inputs_batch_size
             assert self.n_outputs == inputs_n_inputs, "LSTM has been set up with different output size to the " \
                                                       "attempted size of input"
         else:
@@ -104,7 +103,8 @@ class AE_LSTMDecoder(object):
                 outputs, final_state = lstm_decoder(inputs, states)
                 final_outputs = dense_output(outputs)  # outputs is (n_steps, batch_size, n_hidden)
             else:
-                first_input = tf.zeros((1, batch_size, self.n_outputs))  # NB Just one step, so first argument is 1
+                first_input = tf.expand_dims(tf.zeros_like(c)[:,0], 0)  # (1, batch_size) - NB Just one step, so first argument is 1
+                first_input = tf.transpose(tf.pack([first_input] * self.n_outputs), [2, 1, 0]) # (1, batch_size, n_outputs)
 
                 lstm_input = first_input
                 final_outputs = []

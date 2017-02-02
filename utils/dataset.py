@@ -93,6 +93,7 @@ class DatasetFeed(object):
         else:
             self.current_dataset_index = next_index % self.num_data_points
             self.epochs_completed += 1
+            print("Completed {} epochs".format(self.epochs_completed))
             first_sub_batch = self.data[current_index:]  # The remainder of the current set of data points
             if shuffle_after_every_epoch:
                 shuffle(self.data)

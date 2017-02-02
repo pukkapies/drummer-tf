@@ -209,7 +209,7 @@ class Autoencoder():
     def ae(self, x):
         """End-to-end autoencoder"""
         # np.array -> np.array
-        return self.decode(*self.encode(x))
+        return self.decode(self.encode(x))
 
     def train(self, max_iter=np.inf, max_epochs=np.inf, verbose=True, save=True):
 
