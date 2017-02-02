@@ -9,7 +9,7 @@ import tensorflow as tf
 import utils.vaeplot as vaeplot
 # from utils.utils import print_
 from tensorflow.python.ops import rnn_cell
-from utils.training_utils import setup_AE_training_ops
+from utils.training_utils import setup_AE_training_ops, TrainingLog
 
 
 class Autoencoder():
@@ -40,6 +40,7 @@ class Autoencoder():
         self.sess = tf.Session()
         self.__dict__.update(Autoencoder.DEFAULTS, **d_hyperparams)
         self.analysis_folder = analysis_dir
+        self.training_log = TrainingLog(self.analysis_folder)
 
         if build_dict:
             assert not model_to_restore
@@ -57,6 +58,7 @@ class Autoencoder():
             self.global_step = tf.Variable(0, trainable=False, name="global_step")
             self.json_dict = json_dict
             self.datetime = json_dict['model_datetime']
+
             # build graph
             self.scope = scope
             handles = self._buildGraph()
@@ -75,6 +77,9 @@ class Autoencoder():
                 json_vector_settings_dict = json.load(network_json_file)
             model_datetime = json_vector_settings_dict['model_datetime']
             self.datetime = "{}_reloaded".format(model_datetime)
+
+            # Load the cost history
+            self.training_log.load_costs_from_file()
 
             # rebuild graph
             meta_graph = os.path.abspath(model_to_restore)
@@ -159,8 +164,8 @@ class Autoencoder():
 
             # ops to directly explore encoding space
             with tf.name_scope("encoding_in"):
-                encoding_ = rnn_cell.LSTMStateTuple(tf.placeholder(tf.float32, shape=[1, self.decoder.n_LSTM_hidden], name="cell_encoding_in"),
-                                                    tf.placeholder(tf.float32, shape=[1, self.decoder.n_LSTM_hidden], name='hidden_encoding_in'))
+                encoding_ = rnn_cell.LSTMStateTuple(tf.placeholder(tf.float32, shape=[None, self.decoder.n_LSTM_hidden], name="cell_encoding_in"),
+                                                    tf.placeholder(tf.float32, shape=[None, self.decoder.n_LSTM_hidden], name='hidden_encoding_in'))
             graph_scope.reuse_variables()  # No new variables should be created from this point on
             x_reconstructed_ = self.decoder(encoding_)
 
@@ -220,9 +225,6 @@ class Autoencoder():
         if save:
             self.saver = tf.train.Saver(tf.all_variables())
 
-        total_cost_history = np.array([])
-        reconstruction_cost_history = np.array([])
-
         outdir = self.model_folder
         self.accumulated_cost = 0
         now = datetime.now().isoformat()[11:]
@@ -278,8 +280,8 @@ class Autoencoder():
                 #     print("   minibatch KL_cost = {}, reconst = {}".format(np.mean(kl_loss),
                 #                                                            np.mean(rec_loss)))
 
-                total_cost_history = np.hstack((total_cost_history, np.array([float(cost)])))
-                reconstruction_cost_history = np.hstack((reconstruction_cost_history, np.array([float(rec_loss)])))
+                self.training_log.update_costs({'total_cost_history': cost, 'reconstruction_cost_history': rec_loss})
+
 
                 self.batch_count += 1
 
@@ -289,8 +291,8 @@ class Autoencoder():
 
                 if i % 5 == 0:
                     # SAVE COSTS FOR LEARNING CURVES
-                    np.save(self.analysis_folder + 'total_cost.npy', total_cost_history)
-                    np.save(self.analysis_folder + 'reconstruction_cost.npy', reconstruction_cost_history)
+                    np.save(self.analysis_folder + 'total_cost.npy', self.training_log.total_cost_history)
+                    np.save(self.analysis_folder + 'reconstruction_cost.npy', self.training_log.reconstruction_cost_history)
 
                 if i >= max_iter or self.dataset.epochs_completed >= max_epochs:
                     print("final avg cost (@ step {} = epoch {}): {}".format(

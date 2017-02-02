@@ -162,3 +162,22 @@ def setup_AE_training_ops(learning_rate, cost, global_step):
         apply_gradients_op = optimizer.apply_gradients(gradient_acc.cumulative_gradient_list(),
                                                             global_step=global_step, name='minimize_cost')
     return optimizer, gradient_acc, apply_gradients_op
+
+
+class TrainingLog(object):
+
+    def __init__(self, analysis_dir):
+        self.total_cost_history = np.array([])
+        self.reconstruction_cost_history = np.array([])
+        self.analysis_dir = analysis_dir
+        if self.analysis_dir[-1] != '/': self.analysis_dir += '/'
+
+    def load_costs_from_file(self):
+        self.total_cost_history = np.load(self.analysis_dir + 'total_cost.npy')
+        self.reconstruction_cost_history = np.load(self.analysis_dir + 'reconstruction_cost.npy')
+
+    def update_costs(self, costs_dict):
+        self.total_cost_history = np.hstack((self.total_cost_history,
+                                             np.array([float(costs_dict['total_cost_history'])])))
+        self.reconstruction_cost_history = np.hstack((self.reconstruction_cost_history,
+                                                      np.array([float(costs_dict['reconstruction_cost_history'])])))
