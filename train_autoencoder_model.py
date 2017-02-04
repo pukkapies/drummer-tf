@@ -128,8 +128,12 @@ def main(args):
         n_hidden_encoder = args.lstm_encoder_hidden_units[0]  # Just one hidden layer for now
         n_hidden_decoder = args.lstm_decoder_hidden_units[0]
 
-        encoder = AE_LSTMEncoder(n_hidden_encoder)
-        decoder = AE_LSTMDecoder(n_hidden_decoder, n_outputs, n_steps=n_steps, output_activation=tf.sigmoid)
+        encoder_scope = "LSTM_Encoder"
+        encoder = AE_LSTMEncoder(n_hidden_encoder, scope=encoder_scope)
+
+        decoder_scope = "LSTM_Decoder"
+        decoder = AE_LSTMDecoder(n_hidden_decoder, n_outputs, scope=decoder_scope,
+                                 n_steps=n_steps, output_activation=tf.sigmoid)
 
         n_input = n_outputs
 
@@ -154,7 +158,9 @@ def main(args):
             if not os.path.exists(dir): os.makedirs(dir)
 
         build_dict = {'encoder': encoder,
+                      'encoder_scope': encoder_scope,
                       'decoder': decoder,
+                      'decoder_scope': decoder_scope,
                       'n_input': n_input,
                       'input_placeholder': input_placeholder,
                       'shifted_input_placeholder': shifted_input_placeholder,
