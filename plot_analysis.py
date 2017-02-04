@@ -16,11 +16,11 @@ def get_arguments():
     parser = argparse.ArgumentParser(description='LSTM audio synth model')
     parser.add_argument('model_folder', type=str,
                         help='Folder where analysis files are saved.')
-    parser.add_argument('-l', '--learning_curves', type=_str_to_bool, default=False,
+    parser.add_argument('-l', '--learning_curves', action="store_true",
                         help='Plot learning curves for minibatch cost at each iteration.')
-    parser.add_argument('-s', '--show', type=_str_to_bool, default=True,
+    parser.add_argument('-s', '--show', action="store_true",
                         help='Show plot (true) or save plot (false), default is True.')
-    parser.add_argument('--reconst_cost', type=_str_to_bool, default=False,
+    parser.add_argument('--reconst_cost', action="store_true",
                         help='Whether to plot the reconstruction cost separately.')
     return parser.parse_args()
 

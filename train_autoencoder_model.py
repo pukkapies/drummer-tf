@@ -19,7 +19,7 @@ import json
 VECTOR_FOLDER = None
 
 # Training parameters
-LEARNING_RATE_LIST = [0.001, 0.0001, 0.00001]
+LEARNING_RATE = 0.001
 NUM_TRAINING_STEPS = 10000
 STARTED_DATESTRING = "{0:%Y-%m-%dT%H-%M-%S}".format(datetime.now())
 DISPLAY_STEP = 10
@@ -60,7 +60,7 @@ def get_arguments():
                         help='Number of training steps.')
     parser.add_argument('--num_batches_per_grad_update', type=int, default=1,
                         help='Number of minibatches to accumulate gradients before applying them')
-    parser.add_argument('--learning_rates', default=LEARNING_RATE_LIST, type=float, nargs='+',
+    parser.add_argument('--learning_rate', default=LEARNING_RATE, type=float,
                         help='Learning rate list for training.')
     parser.add_argument('--lstm_encoder_hidden_units', default=N_HIDDEN, type=int, nargs='+',
                         help='Number of hidden units in each LSTM encoder layer')
@@ -95,6 +95,8 @@ def main(args):
     print('n_steps:', n_steps)
     n_outputs = data_shape[1]
 
+    d_hyperparams = {'learning_rate': args.learning_rate}
+
     if os.path.exists(model_folder):  # Resume a previously trained model
         if not os.path.isfile(model_folder + ".meta"):
             raise ValueError("Model_folder exists, but supplied path is not a meta file (supply path without '.meta')")
@@ -110,7 +112,7 @@ def main(args):
         analysis_dir = model_folder + 'analysis/'  # For learning curves etc.
         for dir in [log_dir, analysis_dir]:
             if not os.path.exists(dir): os.makedirs(dir)
-        autoencoder = Autoencoder(model_to_restore=meta_graph, d_hyperparams={},
+        autoencoder = Autoencoder(model_to_restore=meta_graph, d_hyperparams=d_hyperparams,
                   log_dir=log_dir, analysis_dir=analysis_dir, json_dict=json_settings)
         autoencoder.dataset = dataset
 
@@ -167,7 +169,7 @@ def main(args):
                       'dataset': dataset,
                       'model_folder': model_folder}
 
-        autoencoder = Autoencoder(build_dict=build_dict, d_hyperparams={},
+        autoencoder = Autoencoder(build_dict=build_dict, d_hyperparams=d_hyperparams,
                   log_dir=log_dir, analysis_dir=analysis_dir, json_dict=json_settings)
 
         create_json(model_folder + 'network_settings.json', json_settings)

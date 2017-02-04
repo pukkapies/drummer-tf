@@ -42,6 +42,8 @@ class Autoencoder():
         self.analysis_folder = analysis_dir
         self.training_log = TrainingLog(self.analysis_folder)
 
+        print("Learning rate set to {}".format(self.learning_rate))
+
         if build_dict:
             assert not model_to_restore
             assert all(key in build_dict for key in ['encoder', 'decoder', 'n_input', 'input_placeholder',
@@ -291,7 +293,6 @@ class Autoencoder():
                 #                                                            np.mean(rec_loss)))
 
                 self.training_log.update_costs({'total_cost_history': cost, 'reconstruction_cost_history': rec_loss})
-
 
                 self.batch_count += 1
 

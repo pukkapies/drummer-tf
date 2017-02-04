@@ -85,14 +85,21 @@ class LSTMCell(RNNCell):
     def output_size(self):
         return self.num_units
 
-    def __call__(self, x, state, scope=None):
+    def __call__(self, input, state, scope=None):
+        """
+        Calls the LSTM, computing outputs for given inputs and initial state
+        :param input: Tensor of shape (batch_size, n_inputs)
+        :param state: Tuple of 2 tensors of shape (batch_size, n_hidden). Order is (cell_state, hidden_state)
+        :param scope: name scope
+        :return:
+        """
         with tf.variable_scope(scope or type(self).__name__):
             c, h = state
 
             # Keep W_xh and W_hh separate here as well to reuse initialization methods
-            x_size = x.get_shape().as_list()[1]
+            input_size = input.get_shape().as_list()[1]
             W_xh = tf.get_variable('W_xh',
-                [x_size, 4 * self.num_units],
+                [input_size, 4 * self.num_units],
                 initializer=orthogonal_initializer())
             W_hh = tf.get_variable('W_hh',
                 [self.num_units, 4 * self.num_units],
@@ -101,7 +108,7 @@ class LSTMCell(RNNCell):
 
             # hidden = tf.matmul(x, W_xh) + tf.matmul(h, W_hh) + bias
             # improve speed by concat.
-            concat = tf.concat(1, [x, h])
+            concat = tf.concat(1, [input, h])
             W_both = tf.concat(0, [W_xh, W_hh])
             hidden = tf.matmul(concat, W_both) + bias
 
