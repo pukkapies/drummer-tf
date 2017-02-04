@@ -1,6 +1,14 @@
 import tensorflow as tf
-from nn_models.lstm import ColahLSTM
 import numpy as np
+
+
+## Test for unknown batch size and get_shape
+
+x = tf.placeholder(tf.float32, shape=[None, 3], name='plac')
+shape = x.get_shape().as_list()
+print(shape)
+
+asdfasdf
 
 ## Test for numpy arrays in graph
 

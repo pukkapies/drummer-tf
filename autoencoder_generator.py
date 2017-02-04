@@ -36,7 +36,7 @@ def main(args):
         network_settings = json.load(f)
 
     loaded, json_vector_settings, analysis_type = load_from_dir_root(args.vector_folder)
-    dataset = DatasetFeed(loaded, 15)
+    dataset = DatasetFeed(loaded, 1)
     # for datablock in dataset.data:
     #     print(datablock.shape)
 
@@ -63,19 +63,27 @@ def main(args):
 
     ##################### PLOT IN LATENT SPACE #####################
 
-    next_batch = dataset.next_batch()  # (batch_size, n_steps, n_inputs)
-    next_batch_original = np.transpose(next_batch, [1, 0, 2])  # (n_steps, batch_size, n_inputs)
-    next_batch = next_batch_original[::-1, :, :]  # Reverse the data in time!!
+    num_examples = 20
+    xs = np.array([])
+    ys = np.array([])
 
-    lstm_state_tuple = autoencoder.encode(next_batch)  # (n_steps, batch_size, n_inputs)
-    c, h = lstm_state_tuple
+    for _ in range(num_examples):
+        next_batch = dataset.next_batch()  # (batch_size, n_steps, n_inputs)
+        next_batch_original = np.transpose(next_batch, [1, 0, 2])  # (n_steps, batch_size, n_inputs)
+        next_batch = next_batch_original[::-1, :, :]  # Reverse the data in time!!
 
-    print("c shape: {}, h shape: {}".format(c.shape, h.shape))
-    print(c)
-    print(h)
+        lstm_state_tuple = autoencoder.encode(next_batch)  # (n_steps, batch_size, n_inputs)
+        c, h = lstm_state_tuple
 
-    xs, ys = c.T[:2, :]
+        print("c shape: {}, h shape: {}".format(c.shape, h.shape))  # Both (batch_size, n_LSTM_hidden)
+        print(c)
+        print(h)
 
+        xs = np.append(xs, c[0, 0])
+        ys = np.append(ys, c[0, 1])
+
+    print("xs: ", xs)
+    print("ys: ", ys)
     plt.figure()
     plt.title("round {}: {} in latent space".format(global_step, 'Toms'))
     kwargs = {'alpha': 0.8}
