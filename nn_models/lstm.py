@@ -2,7 +2,9 @@ import tensorflow as tf
 from tensorflow.python.ops import rnn, rnn_cell
 import numpy as np
 from tensorflow.python.ops.math_ops import tanh
+from tensorflow.python.ops.rnn_cell import RNNCell
 
+tf.report_uninitialized_variables()
 
 class SimpleLSTM(object):
 
@@ -69,77 +71,138 @@ class Stacked_LSTM(SimpleLSTM):
 
 ##################################################################################################################
 
-class ColahLSTM(object):
-    # DEPRECATED
-    def __init__(self, n_inputs, n_hidden, batch_size, scope):
-        self.scope = scope
-        self.n_inputs = n_inputs
-        self.n_hidden = n_hidden
-        self.batch_size = batch_size
-        with tf.variable_scope('LSTM'):
-            self.hidden_state = tf.zeros([self.batch_size, self.n_hidden])
-            self.cell_state = tf.zeros([self.batch_size, self.n_hidden])
-        self.variables = self._create_variables()
 
-    def _create_variables(self):
-        vars = dict()
+class LSTMCell(RNNCell):
+    '''Vanilla LSTM implemented with same initializations as BN-LSTM'''
+    def __init__(self, num_units):
+        self.num_units = num_units
 
-        with tf.variable_scope(self.scope, reuse=None):
-            vars['forget_weights'] = tf.get_variable('forget_weights', (self.n_inputs + self.n_hidden, self.n_hidden),
-                                                     initializer=tf.random_normal_initializer())
-            vars['forget_bias'] = tf.get_variable('forget_bias', (self.n_hidden, ),
-                                                  initializer=tf.constant_initializer(1.0))
+    @property
+    def state_size(self):
+        return (self.num_units, self.num_units)
 
-            vars['input_gate_weights'] = tf.get_variable('input_gate_weights',
-                                                     (self.n_inputs + self.n_hidden, self.n_hidden),
-                                                     initializer=tf.random_normal_initializer())
-            vars['input_gate_bias'] = tf.get_variable('input_gate_bias', (self.n_hidden,),
-                                                  initializer=tf.constant_initializer(1.0))
+    @property
+    def output_size(self):
+        return self.num_units
 
-            vars['input_weights'] = tf.get_variable('input_weights',
-                                                     (self.n_inputs + self.n_hidden, self.n_hidden),
-                                                     initializer=tf.random_normal_initializer())
-            vars['input_bias'] = tf.get_variable('input_bias', (self.n_hidden,),
-                                                  initializer=tf.constant_initializer(0.0))
+    def __call__(self, x, state, scope=None):
+        with tf.variable_scope(scope or type(self).__name__):
+            c, h = state
 
-            vars['output_weights'] = tf.get_variable('output_weights',
-                                                     (self.n_inputs + self.n_hidden, self.n_hidden),
-                                                     initializer=tf.random_normal_initializer())
-            vars['output_bias'] = tf.get_variable('output_bias', (self.n_hidden,),
-                                                  initializer=tf.constant_initializer(0.0))
-        return vars
+            # Keep W_xh and W_hh separate here as well to reuse initialization methods
+            x_size = x.get_shape().as_list()[1]
+            W_xh = tf.get_variable('W_xh',
+                [x_size, 4 * self.num_units],
+                initializer=orthogonal_initializer())
+            W_hh = tf.get_variable('W_hh',
+                [self.num_units, 4 * self.num_units],
+                initializer=bn_lstm_identity_initializer(0.95))
+            bias = tf.get_variable('bias', [4 * self.num_units])
 
-    def update(self, input_vec):
-        """
-        Performs the update rule for the LSTM
-        :param input_vec: Tensor of shape (batch_size, n_inputs)
-        :return: Output - Tensor of shape (batch_size, n_hidden)
-        """
-        with tf.variable_scope(self.scope, reuse=True):
-            # print('input_vec shape:', input_vec.get_shape())
-            # input_vec_split = tf.split(0, self.batch_size, input_vec)
-            # print('after splitting: ', input_vec_split)
-            # print('first input_vec_split shape: ', tf.squeeze(input_vec_split[0]).get_shape())
-            # print('hiddenstate check: ', self.hidden_state.get_shape())
-            # concat_hidden_input = tf.pack([tf.concat(0, [tf.squeeze(vec), self.hidden_state])
-            #                                for vec in input_vec_split])
+            # hidden = tf.matmul(x, W_xh) + tf.matmul(h, W_hh) + bias
+            # improve speed by concat.
+            concat = tf.concat(1, [x, h])
+            W_both = tf.concat(0, [W_xh, W_hh])
+            hidden = tf.matmul(concat, W_both) + bias
 
-            concat_hidden_input = tf.concat(1, [input_vec, self.hidden_state])
+            i, j, f, o = tf.split(1, 4, hidden)
 
-            forget_activation = tf.sigmoid(tf.matmul(concat_hidden_input, self.variables['forget_weights'])
-                                           + self.variables['forget_bias'])
+            new_c = c * tf.sigmoid(f) + tf.sigmoid(i) * tf.tanh(j)
+            new_h = tf.tanh(new_c) * tf.sigmoid(o)
 
-            self.cell_state = self.cell_state * forget_activation
+            return new_h, (new_c, new_h)
 
-            input_activation = tf.sigmoid(tf.matmul(concat_hidden_input, self.variables['input_gate_weights'])
-                                          + self.variables['input_gate_bias']) * \
-                               tf.tanh(tf.matmul(concat_hidden_input, self.variables['input_weights'])
-                                       + self.variables['input_bias'])
-            self.cell_state = self.cell_state + input_activation
+class BNLSTMCell(RNNCell):
+    """Batch normalized LSTM as described in arxiv.org/abs/1603.09025"""
+    def __init__(self, num_units, training):
+        self.num_units = num_units
+        self.training = training
 
-            output_activation = tf.sigmoid(tf.matmul(concat_hidden_input, self.variables['output_weights'])
-                                           + self.variables['output_bias'])
-            output = tf.tanh(self.cell_state) * output_activation
+    @property
+    def state_size(self):
+        return (self.num_units, self.num_units)
 
-            self.hidden_state = output
-        return output
+    @property
+    def output_size(self):
+        return self.num_units
+
+    def __call__(self, x, state, scope=None):
+        with tf.variable_scope(scope or type(self).__name__):
+            c, h = state
+
+            x_size = x.get_shape().as_list()[1]
+            W_xh = tf.get_variable('W_xh',
+                [x_size, 4 * self.num_units],
+                initializer=orthogonal_initializer())
+            W_hh = tf.get_variable('W_hh',
+                [self.num_units, 4 * self.num_units],
+                initializer=bn_lstm_identity_initializer(0.95))
+            bias = tf.get_variable('bias', [4 * self.num_units])
+
+            xh = tf.matmul(x, W_xh)
+            hh = tf.matmul(h, W_hh)
+
+            bn_xh = batch_norm(xh, 'xh', self.training)
+            bn_hh = batch_norm(hh, 'hh', self.training)
+
+            hidden = bn_xh + bn_hh + bias
+
+            i, j, f, o = tf.split(1, 4, hidden)
+
+            new_c = c * tf.sigmoid(f) + tf.sigmoid(i) * tf.tanh(j)
+            bn_new_c = batch_norm(new_c, 'c', self.training)
+
+            new_h = tf.tanh(bn_new_c) * tf.sigmoid(o)
+
+            return new_h, (new_c, new_h)
+
+def orthogonal(shape):
+    flat_shape = (shape[0], np.prod(shape[1:]))
+    a = np.random.normal(0.0, 1.0, flat_shape)
+    u, _, v = np.linalg.svd(a, full_matrices=False)
+    q = u if u.shape == flat_shape else v
+    return q.reshape(shape)
+
+def bn_lstm_identity_initializer(scale):
+    def _initializer(shape, dtype=tf.float32, partition_info=None):
+        '''Ugly cause LSTM params calculated in one matrix multiply'''
+        size = shape[0]
+        # gate (j) is identity
+        t = np.zeros(shape)
+        t[:, size:size * 2] = np.identity(size) * scale
+        t[:, :size] = orthogonal([size, size])
+        t[:, size * 2:size * 3] = orthogonal([size, size])
+        t[:, size * 3:] = orthogonal([size, size])
+        return tf.constant(t, dtype)
+
+    return _initializer
+
+def orthogonal_initializer():
+    def _initializer(shape, dtype=tf.float32, partition_info=None):
+        return tf.constant(orthogonal(shape), dtype)
+    return _initializer
+
+def batch_norm(x, name_scope, training, epsilon=1e-3, decay=0.999):
+    """Assume 2d [batch, values] tensor"""
+
+    with tf.variable_scope(name_scope):
+        size = x.get_shape().as_list()[1]
+
+        scale = tf.get_variable('scale', [size], initializer=tf.constant_initializer(0.1))
+        offset = tf.get_variable('offset', [size])  # Should this be a constant zero initializer?
+
+        pop_mean = tf.get_variable('pop_mean', [size], initializer=tf.zeros_initializer, trainable=False)
+        pop_var = tf.get_variable('pop_var', [size], initializer=tf.ones_initializer, trainable=False)
+        batch_mean, batch_var = tf.nn.moments(x, [0])
+
+        train_mean_op = tf.assign(pop_mean, pop_mean * decay + batch_mean * (1 - decay))
+        train_var_op = tf.assign(pop_var, pop_var * decay + batch_var * (1 - decay))
+
+        def batch_statistics():
+            with tf.control_dependencies([train_mean_op, train_var_op]):
+                return tf.nn.batch_normalization(x, batch_mean, batch_var, offset, scale, epsilon)
+
+        def population_statistics():
+            return tf.nn.batch_normalization(x, pop_mean, pop_var, offset, scale, epsilon)
+
+        return tf.cond(training, batch_statistics, population_statistics)
