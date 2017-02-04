@@ -78,9 +78,6 @@ class Autoencoder():
             model_datetime = json_vector_settings_dict['model_datetime']
             self.datetime = "{}_reloaded".format(model_datetime)
 
-            # Load the cost history
-            self.training_log.load_costs_from_file()
-
             # rebuild graph
             meta_graph = os.path.abspath(model_to_restore)
             tf.train.import_meta_graph(meta_graph + ".meta").restore(self.sess, meta_graph)
@@ -90,9 +87,10 @@ class Autoencoder():
             (self.input_placeholder, self.shifted_input_placeholder,
              self.encoding_cell, self.encoding_hidden, self.x_reconstructed, self.encoding_cell_, self.encoding_hidden_,
              self.x_reconstructed_, self.cost, self.rec_loss, self.l2_reg, self.apply_gradients_op, self.global_step) = handles
+            # NB These items are still in the collection after reloading
 
-            self.optimizer, self.gradient_acc, apply_gradients_op = \
-                setup_AE_training_ops(self.learning_rate, self.cost, self.global_step)
+            # Load the cost history
+            self.training_log.load_costs_from_file(self.sess.run(self.global_step))
         else:
             raise Exception("VAE must be initialised with either build_dict or model_to_restore")
 
@@ -157,7 +155,8 @@ class Autoencoder():
             print("Defined loss functions")
 
             # optimization
-            self.optimizer, self.gradient_acc, apply_gradients_op = setup_AE_training_ops(self.learning_rate, cost, self.global_step)
+            self.optimizer, self.gradient_acc, apply_gradients_op = setup_AE_training_ops(self.sess, self.learning_rate, cost,
+                                                                                          self.global_step)
             print("Defined training ops")
 
             print([var._variable for var in tf.all_variables()])
@@ -217,6 +216,10 @@ class Autoencoder():
         return self.decode(self.encode(x))
 
     def train(self, max_iter=np.inf, max_epochs=np.inf, verbose=True, save=True):
+        self.optimizer, self.gradient_acc, apply_gradients_op = \
+            setup_AE_training_ops(self.sess, self.learning_rate, self.cost, self.global_step)
+        # Need to initialize the accumulator variables and the optimizer variables
+        self.gradient_acc.initialize_internal_variables()
 
         # Get ops for gradient updates
         update_gradients_ops = self.gradient_acc.update_gradients_ops()
@@ -243,7 +246,7 @@ class Autoencoder():
                 # Reverse the input to the encoder in time!
                 x = x[::-1, :, :]
                 # Quick tests
-                if self.batch_size > 6:
+                if total_batch_size >= 6:
                     assert x[10, 6, 10] == x_shifted[-10, 6, 10]
                     assert x[4, 3, 2] == x_shifted[-4, 3, 2]
                 assert x.shape == x_shifted.shape
@@ -254,6 +257,12 @@ class Autoencoder():
                 feed_dict = {self.input_placeholder: x, self.shifted_input_placeholder: x_shifted}
 
                 print("Updating gradients...")
+
+                for var in tf.all_variables():
+                    try:
+                        self.sess.run(var, feed_dict=feed_dict)
+                    except tf.errors.FailedPreconditionError:
+                        print(var.name)
 
                 fetches = [self.x_reconstructed, self.cost, self.rec_loss, self.global_step] + update_gradients_ops
                 x_reconstructed, cost, rec_loss, i, *_ = self.sess.run(fetches, feed_dict=feed_dict)
