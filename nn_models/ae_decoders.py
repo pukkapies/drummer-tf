@@ -33,7 +33,7 @@ class AE_FeedForwardDecoder(object):
 
 
 class AE_LSTMDecoder(object):
-    def __init__(self, n_LSTM_hidden, n_outputs, n_steps=None, dense_layers=[], output_activation=tf.tanh):
+    def __init__(self, n_LSTM_hidden, n_outputs, scope="LSTM_Decoder", n_steps=None, dense_layers=[], output_activation=tf.tanh):
         """
         Sets up an LSTM encode for the VAE
         :param n_LSTM_hidden: Size of hidden layer of LSTM
@@ -42,6 +42,8 @@ class AE_LSTMDecoder(object):
         :param output_activation: Activation function to apply to final LSTM output
         """
         self.n_LSTM_hidden = n_LSTM_hidden
+        self.scope = scope
+        self.reuse = False  # Will be set to True after the decoder is called for the first time
         self.dense_layers = dense_layers
         if len(self.dense_layers) != 0:
             raise NotImplementedError("Dense layers not yet implemented for AE LSTM decoder.")
@@ -56,7 +58,7 @@ class AE_LSTMDecoder(object):
         :param inputs: Optional inputs to feed to the LSTM of shape (n_steps, batch_size, n_inputs).
                         batch_size must match encoding batch_size, n_inputs must match n_LSTM_hidden.
                         If not present, the LSTM will feed in its own output from the previous step.
-        :return: final_outputs: Tensor  of shape (n_steps, batch_size, n_hidden)
+        :return: final_outputs: Tensor of shape (n_steps, batch_size, n_hidden)
         """
         # encoding / recognition model q(z|x)
         c, h = encoding
@@ -73,7 +75,7 @@ class AE_LSTMDecoder(object):
         else:
             assert self.n_steps, "LSTMDecoder called without inputs, but n_steps has not been set."
 
-        with tf.variable_scope("LSTM_Decoder") as decoder_scope:
+        with tf.variable_scope(self.scope, reuse=self.reuse) as decoder_scope:
             # layers = [Dense(scope="postlatent_{}".format(i), size=hidden_size, nonlinearity=tf.tanh,
             #                 initialiser=wbVars_Xavier) for i, hidden_size in enumerate(reversed(self.dense_layers))]
             # initial_LSTM_states_encoded = composeAll(layers)(encoding)
@@ -104,7 +106,7 @@ class AE_LSTMDecoder(object):
                 final_outputs = dense_output(outputs)  # outputs is (n_steps, batch_size, n_hidden)
             else:
                 first_input = tf.expand_dims(tf.zeros_like(c)[:,0], 0)  # (1, batch_size) - NB Just one step, so first argument is 1
-                first_input = tf.transpose(tf.pack([first_input] * self.n_outputs), [2, 1, 0]) # (1, batch_size, n_outputs)
+                first_input = tf.transpose(tf.pack([first_input] * self.n_outputs), [1, 2, 0]) # (1, batch_size, n_outputs)
 
                 lstm_input = first_input
                 final_outputs = []
@@ -121,4 +123,5 @@ class AE_LSTMDecoder(object):
                 final_outputs = tf.pack(final_outputs)  # (n_steps, batch_size, n_outputs)
 
             print('final outputs shape from decoder: ', final_outputs.get_shape())
+            self.reuse = True  # Future calls to this decoder instance will reuse existing variables
             return final_outputs
