@@ -68,11 +68,12 @@ class GradientAccumulator(object):
     when the minibatch is too big to fit on the GPU.
     """
 
-    def __init__(self, grads_and_vars, optimizer):
+    def __init__(self, sess, grads_and_vars, optimizer):
         """
         Initialiser
         :param gradients: List of (gradient, variable) tuples as returned by the optimizer.compute_gradients op
         """
+        self.sess = sess
         self._gradients_and_variables = grads_and_vars
         self._optimizer = optimizer
 
@@ -81,6 +82,10 @@ class GradientAccumulator(object):
         self._varname_to_var = dict((var.name, var) for _, var in self._gradients_and_variables)
         self._var_keys = sorted(self._varname_to_var.keys())
         self._var_to_accum_grad = self._initialize_gradient_dict()
+
+    def initialize_internal_variables(self):
+        for key in self._var_to_accum_grad:
+            self.sess.run(tf.initialize_variables([self._var_to_accum_grad[key]]))
 
     def _initialize_gradient_dict(self):
         var_to_acc_grad = {}
@@ -120,7 +125,7 @@ class GradientAccumulator(object):
             var_grad_list.append((grad, var))
         return var_grad_list
 
-def setup_VAE_training_ops(learning_rate, cost, cost_no_KL, global_step):
+def setup_VAE_training_ops(sess, learning_rate, cost, cost_no_KL, global_step):
     with tf.name_scope("Adam_optimizer"):
         optimizer = tf.train.AdamOptimizer(learning_rate)
         tvars = tf.trainable_variables()
@@ -136,17 +141,22 @@ def setup_VAE_training_ops(learning_rate, cost, cost_no_KL, global_step):
         clipped_no_KL = [(tf.clip_by_value(grad, -5, 5), tvar)  # gradient clipping
                          for grad, tvar in grads_and_vars_no_KL]
 
-        gradient_acc = GradientAccumulator(clipped, optimizer)
-        gradient_acc_no_KL = GradientAccumulator(clipped_no_KL, optimizer)
+        gradient_acc = GradientAccumulator(sess, clipped, optimizer)
+        gradient_acc_no_KL = GradientAccumulator(sess, clipped_no_KL, optimizer)
 
         apply_gradients_op = optimizer.apply_gradients(gradient_acc.cumulative_gradient_list(),
                                                             global_step=global_step, name='minimize_cost')
         apply_gradients_op_no_KL = optimizer.apply_gradients(gradient_acc_no_KL.cumulative_gradient_list(),
                                                                   global_step=global_step,
                                                                   name='minimize_cost_no_KL')
+
+        # Initialize all variables used in the optimizer
+        for var in tf.all_variables():
+            if var in tf.get_collection(tf.GraphKeys.VARIABLES, scope='Adam_optimizer'):
+                sess.run(tf.initialize_variables([var]))
     return optimizer, gradient_acc, gradient_acc_no_KL, apply_gradients_op, apply_gradients_op_no_KL
 
-def setup_AE_training_ops(learning_rate, cost, global_step):
+def setup_AE_training_ops(sess, learning_rate, cost, global_step):
     with tf.name_scope("Adam_optimizer"):
         optimizer = tf.train.AdamOptimizer(learning_rate)
         tvars = tf.trainable_variables()
@@ -157,10 +167,15 @@ def setup_AE_training_ops(learning_rate, cost, global_step):
         clipped = [(tf.clip_by_value(grad, -5, 5), tvar)  # gradient clipping
                    for grad, tvar in grads_and_vars]
 
-        gradient_acc = GradientAccumulator(clipped, optimizer)
+        gradient_acc = GradientAccumulator(sess, clipped, optimizer)
 
         apply_gradients_op = optimizer.apply_gradients(gradient_acc.cumulative_gradient_list(),
                                                             global_step=global_step, name='minimize_cost')
+
+        # Initialize all variables used in the optimizer
+        for var in tf.all_variables():
+            if var in tf.get_collection(tf.GraphKeys.VARIABLES, scope='Adam_optimizer'):
+                sess.run(tf.initialize_variables([var]))
     return optimizer, gradient_acc, apply_gradients_op
 
 
@@ -172,9 +187,9 @@ class TrainingLog(object):
         self.analysis_dir = analysis_dir
         if self.analysis_dir[-1] != '/': self.analysis_dir += '/'
 
-    def load_costs_from_file(self):
-        self.total_cost_history = np.load(self.analysis_dir + 'total_cost.npy')
-        self.reconstruction_cost_history = np.load(self.analysis_dir + 'reconstruction_cost.npy')
+    def load_costs_from_file(self, global_step):
+        self.total_cost_history = np.load(self.analysis_dir + 'total_cost.npy')[:global_step]
+        self.reconstruction_cost_history = np.load(self.analysis_dir + 'reconstruction_cost.npy')[:global_step]
 
     def update_costs(self, costs_dict):
         self.total_cost_history = np.hstack((self.total_cost_history,
