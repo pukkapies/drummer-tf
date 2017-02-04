@@ -47,7 +47,9 @@ class Autoencoder():
             assert all(key in build_dict for key in ['encoder', 'decoder', 'n_input', 'input_placeholder',
                                                      'shifted_input_placeholder', 'dataset', 'model_folder'])
             self.encoder = build_dict['encoder']
+            self.encoder_scope = build_dict['encoder_scope']
             self.decoder = build_dict['decoder']
+            self.decoder_scope = build_dict['decoder_scope']
             self.input_placeholder = build_dict['input_placeholder']
             self.shifted_input_placeholder = build_dict['shifted_input_placeholder']
 
@@ -69,7 +71,7 @@ class Autoencoder():
             # unpack handles for tensor ops to feed or fetch
             (_1, _2,  # input_placeholder, shifted_input_placeholder
              self.encoding_cell, self.encoding_hidden, self.x_reconstructed, self.encoding_cell_, self.encoding_hidden_, self.x_reconstructed_,
-             self.cost, self.rec_loss, self.l2_reg, self.apply_gradients_op, _3) = handles  # Last one is global_step
+             self.cost, self.rec_loss, self.l2_reg, _3) = handles  # Last one is global_step
         elif model_to_restore:
             assert not build_dict
             self.model_folder = '/'.join((model_to_restore.split('/')[:-1])) + '/'
@@ -86,7 +88,7 @@ class Autoencoder():
             print("Restored handles: ", handles)
             (self.input_placeholder, self.shifted_input_placeholder,
              self.encoding_cell, self.encoding_hidden, self.x_reconstructed, self.encoding_cell_, self.encoding_hidden_,
-             self.x_reconstructed_, self.cost, self.rec_loss, self.l2_reg, self.apply_gradients_op, self.global_step) = handles
+             self.x_reconstructed_, self.cost, self.rec_loss, self.l2_reg, self.global_step) = handles
             # NB These items are still in the collection after reloading
 
             # Load the cost history
@@ -154,22 +156,16 @@ class Autoencoder():
 
             print("Defined loss functions")
 
-            # optimization
-            self.optimizer, self.gradient_acc, apply_gradients_op = setup_AE_training_ops(self.sess, self.learning_rate, cost,
-                                                                                          self.global_step)
-            print("Defined training ops")
-
-            print([var._variable for var in tf.all_variables()])
-
             # ops to directly explore encoding space
             with tf.name_scope("encoding_in"):
                 encoding_ = rnn_cell.LSTMStateTuple(tf.placeholder(tf.float32, shape=[None, self.decoder.n_LSTM_hidden], name="cell_encoding_in"),
                                                     tf.placeholder(tf.float32, shape=[None, self.decoder.n_LSTM_hidden], name='hidden_encoding_in'))
-            graph_scope.reuse_variables()  # No new variables should be created from this point on
+
+            # graph_scope.reuse_variables()  # No new variables should be created from this point on within this scope
             x_reconstructed_ = self.decoder(encoding_)
 
             return (self.input_placeholder, self.shifted_input_placeholder, encoding[0], encoding[1], reconstruction,  # Removed dropout from second place
-                    encoding_[0], encoding_[1], x_reconstructed_, cost, rec_loss, l2_reg, apply_gradients_op, self.global_step)
+                    encoding_[0], encoding_[1], x_reconstructed_, cost, rec_loss, l2_reg, self.global_step)
 
     @staticmethod
     def crossEntropy(obs, actual, offset=1e-7):
@@ -216,14 +212,19 @@ class Autoencoder():
         return self.decode(self.encode(x))
 
     def train(self, max_iter=np.inf, max_epochs=np.inf, verbose=True, save=True):
-        self.optimizer, self.gradient_acc, apply_gradients_op = \
+        # optimization
+        self.optimizer, self.gradient_acc, self.apply_gradients_op = \
             setup_AE_training_ops(self.sess, self.learning_rate, self.cost, self.global_step)
         # Need to initialize the accumulator variables and the optimizer variables
         self.gradient_acc.initialize_internal_variables()
 
+        print("Defined training ops")
+
+        print([var._variable for var in tf.all_variables()])
+
         # Get ops for gradient updates
-        update_gradients_ops = self.gradient_acc.update_gradients_ops()
-        clear_gradients_ops = self.gradient_acc.clear_gradients()
+        self.update_gradients_ops = self.gradient_acc.update_gradients_ops()
+        self.clear_gradients_ops = self.gradient_acc.clear_gradients()
 
         if save:
             self.saver = tf.train.Saver(tf.all_variables())
@@ -264,7 +265,7 @@ class Autoencoder():
                     except tf.errors.FailedPreconditionError:
                         print(var.name)
 
-                fetches = [self.x_reconstructed, self.cost, self.rec_loss, self.global_step] + update_gradients_ops
+                fetches = [self.x_reconstructed, self.cost, self.rec_loss, self.global_step] + self.update_gradients_ops
                 x_reconstructed, cost, rec_loss, i, *_ = self.sess.run(fetches, feed_dict=feed_dict)
 
                 # print("Gradients before being cleared:")
@@ -275,7 +276,7 @@ class Autoencoder():
                     print("Applying gradients...", end='')
                     self.sess.run(self.apply_gradients_op, feed_dict=feed_dict)
                     print("done")
-                    self.sess.run(clear_gradients_ops)
+                    self.sess.run(self.clear_gradients_ops)
                     self.batch_count = 0
 
                     print("Step {}-> cost for this minibatch: {}".format(i, cost))

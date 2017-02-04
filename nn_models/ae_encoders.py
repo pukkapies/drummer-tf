@@ -34,7 +34,7 @@ class AE_FeedForwardEncoder(object):
 
 class AE_LSTMEncoder(object):
 
-    def __init__(self, n_LSTM_hidden, dense_layers=[], initial_state=None):
+    def __init__(self, n_LSTM_hidden, scope="LSTM_Encoder", dense_layers=[], initial_state=None):
         """
         Sets up an LSTM encode for the VAE
         :param n_LSTM_hidden: Size of hidden layer of LSTM
@@ -44,6 +44,7 @@ class AE_LSTMEncoder(object):
         assert type(dense_layers) == list
         if len(dense_layers) != 0:
             raise NotImplementedError("Dense layers not yet implemented for vanilla autoencoder.")
+        self.scope = scope
         self.n_LSTM_hidden = n_LSTM_hidden
         self.dense_layers = dense_layers
         self.initial_state = initial_state
@@ -59,7 +60,7 @@ class AE_LSTMEncoder(object):
         # encoding model
         print("Before unpack, input shape: ", input.get_shape())
         # print("After unpack, input has length {} and elements shape".format(len(x)), x[0].get_shape())
-        lstm_encoder = SimpleLSTM(self.n_LSTM_hidden, scope='LSTM_encoder',
+        lstm_encoder = SimpleLSTM(self.n_LSTM_hidden, scope=self.scope,
                                   initializer=tf.contrib.layers.xavier_initializer())
         # outputs (shape is (n_steps, batch_size, n_outputs)), final state
         outputs, final_state = lstm_encoder(input, self.initial_state)
