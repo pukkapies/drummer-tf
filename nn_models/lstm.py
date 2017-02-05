@@ -123,9 +123,9 @@ class LSTMCell(RNNCell):
 
 class BNLSTMCell(RNNCell):
     """Batch normalized LSTM as described in arxiv.org/abs/1603.09025"""
-    def __init__(self, num_units, training):
+    def __init__(self, num_units, training_flag):
         self.num_units = num_units
-        self.training = training
+        self.training_flag = training_flag
 
     @property
     def state_size(self):
@@ -162,19 +162,20 @@ class BNLSTMCell(RNNCell):
             xh = tf.matmul(inputs, W_xh)
             hh = tf.matmul(h, W_hh)
 
-            bn_xh = batch_norm(xh, 'xh', self.training)
-            bn_hh = batch_norm(hh, 'hh', self.training)
+            bn_xh = batch_norm(xh, 'xh', self.training_flag)
+            bn_hh = batch_norm(hh, 'hh', self.training_flag)
 
             hidden = bn_xh + bn_hh + bias
 
             i, j, f, o = tf.split(1, 4, hidden)
 
             new_c = c * tf.sigmoid(f) + tf.sigmoid(i) * tf.tanh(j)
-            bn_new_c = batch_norm(new_c, 'c', self.training)
+            bn_new_c = batch_norm(new_c, 'c', self.training_flag)
 
             new_h = tf.tanh(bn_new_c) * tf.sigmoid(o)
 
             return new_h, (new_c, new_h)
+
 
 def orthogonal(shape):
     flat_shape = (shape[0], np.prod(shape[1:]))
