@@ -99,7 +99,7 @@ class AE_LSTMDecoder(object):
 
             # feed_dict = {input: first_input, states[0]: first_states[0], states[1]: first_states[1]}
 
-            states = (c, h)
+            states = encoding
 
             if inputs is not None:
                 outputs, final_state = lstm_decoder(inputs, states)
