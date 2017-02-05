@@ -40,7 +40,7 @@ class SimpleLSTM(object):
 
         # Prepare data shape to match `rnn` function requirements
         # Required shape: 'n_steps' tensors list of shape (batch_size, n_input)
-        x = tf.unpack(inputs)
+        # x = tf.unpack(inputs)
         # print('after splitting, x length and shape: ', [len(x), x[0].get_shape()])
         # print('state: ', init_state)
 
@@ -48,17 +48,19 @@ class SimpleLSTM(object):
         # NB outputs is a list of length n_steps of network outputs, state is just the final state
         with tf.variable_scope(self.scope, initializer=self.initializer) as scope:
             try:
-                outputs, final_state = rnn.rnn(self.cell, x, initial_state=init_state, dtype=tf.float32)
+                outputs, final_state = rnn.dynamic_rnn(self.cell, inputs, initial_state=init_state,
+                                                       dtype=tf.float32, time_major=True)
             except ValueError:  # RNN was already initialised, so share variables
                 scope.reuse_variables()
-                outputs, final_state = rnn.rnn(self.cell, x, initial_state=init_state, dtype=tf.float32)
+                outputs, final_state = rnn.dynamic_rnn(self.cell, inputs, initial_state=init_state,
+                                                       dtype=tf.float32, time_major=True)
         # print('outputs shape:', outputs[0].get_shape())
         # print('states shape:', final_state[0].get_shape()) # (batch_size, n_hidden) NB This has [0] because it is LSTMStateTuple
 
-        final_output = tf.pack(outputs)
+        # final_output = tf.pack(outputs)
         # print(final_output.get_shape())  # (num_steps, batch_size, n_hidden)
 
-        return final_output, final_state
+        return outputs, final_state
 
 ##################################################################################################################
 
@@ -85,19 +87,19 @@ class LSTMCell(RNNCell):
     def output_size(self):
         return self.num_units
 
-    def __call__(self, input, state, scope=None):
+    def __call__(self, inputs, state, scope=None):
         """
         Calls the LSTM, computing outputs for given inputs and initial state
-        :param input: Tensor of shape (batch_size, n_inputs)
+        :param inputs: Tensor of shape (batch_size, n_inputs)
         :param state: Tuple of 2 tensors of shape (batch_size, n_hidden). Order is (cell_state, hidden_state)
         :param scope: name scope
-        :return:
+        :return: Output, new (cell, hidden) state tuple
         """
         with tf.variable_scope(scope or type(self).__name__):
             c, h = state
 
             # Keep W_xh and W_hh separate here as well to reuse initialization methods
-            input_size = input.get_shape().as_list()[1]
+            input_size = inputs.get_shape().as_list()[1]
             W_xh = tf.get_variable('W_xh',
                 [input_size, 4 * self.num_units],
                 initializer=orthogonal_initializer())
@@ -108,7 +110,7 @@ class LSTMCell(RNNCell):
 
             # hidden = tf.matmul(x, W_xh) + tf.matmul(h, W_hh) + bias
             # improve speed by concat.
-            concat = tf.concat(1, [input, h])
+            concat = tf.concat(1, [inputs, h])
             W_both = tf.concat(0, [W_xh, W_hh])
             hidden = tf.matmul(concat, W_both) + bias
 
@@ -133,11 +135,22 @@ class BNLSTMCell(RNNCell):
     def output_size(self):
         return self.num_units
 
-    def __call__(self, x, state, scope=None):
+    def __call__(self, inputs, state, scope=None):
+        """
+        Calls the LSTM, computing outputs for given inputs and initial state
+        :param inputs: Tensor of shape (batch_size, n_inputs)
+        :param state: Tuple of 2 tensors of shape (batch_size, n_hidden). Order is (cell_state, hidden_state).
+                        If None, then it sets the state to zeros
+        :param scope: name scope
+        :return: Output, new (cell, hidden) state tuple
+        """
+        if state == None:
+            state = self.zero_state(inputs.get_shape()[0], tf.float32)
+
         with tf.variable_scope(scope or type(self).__name__):
             c, h = state
 
-            x_size = x.get_shape().as_list()[1]
+            x_size = inputs.get_shape().as_list()[1]
             W_xh = tf.get_variable('W_xh',
                 [x_size, 4 * self.num_units],
                 initializer=orthogonal_initializer())
@@ -146,7 +159,7 @@ class BNLSTMCell(RNNCell):
                 initializer=bn_lstm_identity_initializer(0.95))
             bias = tf.get_variable('bias', [4 * self.num_units])
 
-            xh = tf.matmul(x, W_xh)
+            xh = tf.matmul(inputs, W_xh)
             hh = tf.matmul(h, W_hh)
 
             bn_xh = batch_norm(xh, 'xh', self.training)
