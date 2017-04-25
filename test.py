@@ -1,5 +1,90 @@
 import tensorflow as tf
 import numpy as np
+from tensorflow.contrib.rnn import BasicLSTMCell
+from tensorflow.python.ops.rnn import dynamic_rnn
+
+## Test for minimize op output
+
+input_placeholder = tf.placeholder(tf.float32, [None, None, 10])
+inputs = np.ones((5, 3, 10))
+ground_truth = 0.5 * np.ones((5, 3, 25))
+
+with tf.variable_scope("LSTM"):
+    lstm_cell = BasicLSTMCell(20)
+    lstm_output, state = dynamic_rnn(lstm_cell, input_placeholder, dtype=tf.float32)
+    with tf.variable_scope("Dense_output"):
+        output = tf.layers.dense(lstm_output, units=25, activation=tf.nn.sigmoid)
+
+loss = tf.losses.mean_squared_error(output, ground_truth)
+
+opt_step = tf.train.AdamOptimizer().minimize(loss)
+init_op = tf.global_variables_initializer()
+
+print('loss shape:')
+print(loss.get_shape())
+
+sess = tf.Session()
+sess.run(tf.global_variables_initializer())
+cost, opt = sess.run([loss, opt_step], feed_dict={input_placeholder: inputs})
+
+print('cost = ', cost)
+print(type(opt))
+print(opt)
+
+
+asdfas
+
+
+## Test for tf.layers.dense
+
+input_placeholder = tf.placeholder(tf.float32, [None, None, 10])
+inputs = np.ones((5, 3, 10))
+
+with tf.variable_scope("LSTM"):
+    lstm_cell = BasicLSTMCell(20)
+    lstm_output, state = dynamic_rnn(lstm_cell, input_placeholder, dtype=tf.float32)
+    with tf.variable_scope("Dense_output"):
+        output = tf.layers.dense(lstm_output, units=25, activation=tf.nn.sigmoid)
+
+sess = tf.Session()
+sess.run(tf.global_variables_initializer())
+
+print(sess.run(output, feed_dict={input_placeholder: inputs}))
+print([(var.name, var.get_shape()) for var in tf.all_variables()])
+
+asdfas
+## Test for tensordot
+
+x = tf.ones((1, 5, 2))
+vec = tf.ones((2,))
+print(vec.get_shape())
+
+y = tf.ones((7, 2, 1))
+
+z = tf.tensordot(x, vec, axes=[[-1], [0]])
+
+with tf.Session() as sess:
+    print(z.eval())
+    print(z.get_shape())
+
+asdfasdf
+
+
+## Test for dynamic_rnn
+
+x = tf.placeholder(tf.float32, shape=[None, None, 2], name='placeholder')
+data1 = np.array([[[1, 2], [2, 4], [3, 1]]])
+data2 = np.array([[[0.3, 0], [1, 1], [2, 2], [2, 2]]])
+
+lstm = BasicLSTMCell(4)
+outputs, final_state = dynamic_rnn(lstm, x, dtype=tf.float32)
+
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())
+    print(sess.run(outputs, feed_dict={x: data1}))
+    print(sess.run(outputs, feed_dict={x: data2}))
+
+asdfasdf
 
 
 ## Test for unknown batch size and get_shape

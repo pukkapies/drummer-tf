@@ -341,13 +341,13 @@ dataset = .... # Comes from somewhere
 n_steps = data_shape[0]
 n_input = n_outputs = data_shape[1] # vector size
 
-if args.resume_model:  # Resume a previously trained model
+if resume_model:  # Resume a previously trained model
     print("Model folder exists. Resuming training from {}".format(args.model_folder))
 
     vae = VAE(model_to_restore=meta_graph)
     vae.dataset = dataset
     cost = vae.train(max_iter=args.num_training_steps)
-else:  # Create a new model
+elif create_new_model:  # Create a new model
     latent_dim = args.latent_space_dimension
     n_hidden_encoder = args.lstm_encoder_hidden_units[0]  # Just one hidden layer for now
     prelatent_dense_layers = args.prelatent_dense_layers
@@ -373,6 +373,8 @@ else:  # Create a new model
     vae = VAE(build_dict=build_dict)
 
     cost = vae.train(max_iter=args.num_training_steps)
+else: sample_from_model: # Load a previously trained model and sample from it
+
 
 
 
