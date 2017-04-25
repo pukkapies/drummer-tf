@@ -1,8 +1,8 @@
 import tensorflow as tf
-from tensorflow.python.ops import rnn, rnn_cell
+from tensorflow.contrib.rnn import rnn
 import numpy as np
 from tensorflow.python.ops.math_ops import tanh
-from tensorflow.python.ops.rnn_cell import RNNCell
+from tensorflow.contrib.rnn import RNNCell, BasicLSTMCell
 
 tf.report_uninitialized_variables()
 
@@ -18,7 +18,7 @@ class SimpleLSTM(object):
         :param lstm_activation: Activation function of the inner states of the LSTM
                 (determines the range of values stored in the hidden states)
         """
-        self.cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0, activation=lstm_activation)
+        self.cell = BasicLSTMCell(n_hidden, forget_bias=1.0, activation=lstm_activation)
         self.scope = scope
         self.lstm_activation = lstm_activation
         self.initializer = initializer

@@ -134,7 +134,7 @@ class AE_BNLSTMDecoder(object):
         Sets up a batch-normalised LSTM encode for the AE
         :param n_LSTM_hidden: Size of hidden layer of LSTM
         :param n_outputs: Size of inputs/outputs for each time step
-        :param training_flag: placeholder of bool type (set with tf.placeholder(tf.bool). Indicates whether the
+        :param training_flag: placeholder of bool type (set with tf.placeholder(tf.bool)). Indicates whether the
                         encoder is being used to train or not - if not, statistics is used for population
                         instead of for the batch.
         :param n_steps: int, number of steps to run the LSTM decoder. Not needed if inputs are provided when called.
