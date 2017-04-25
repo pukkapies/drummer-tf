@@ -28,65 +28,16 @@ class SimpleLSTM(object):
         :return: outputs (shape is (n_steps, batch_size, n_outputs)), final state
         """
         with tf.variable_scope(self.scope, initializer=self.initializer) as scope:
-            try:
-                outputs, final_state = rnn.dynamic_rnn(self.cell, inputs, initial_state=init_state,
-                                                       dtype=tf.float32, time_major=True)
-            except ValueError:  # RNN was already initialised, so share variables
-                scope.reuse_variables()
-                outputs, final_state = rnn.dynamic_rnn(self.cell, inputs, initial_state=init_state,
-                                                       dtype=tf.float32, time_major=True)
+            outputs, final_state = rnn.dynamic_rnn(self.cell, inputs, initial_state=init_state,
+                                                   dtype=tf.float32, time_major=True)
         return outputs, final_state
 
 
 #################################################################################################################
 
 
-class VAE_LSTMEncoder(object):
-    def __init__(self, n_LSTM_hidden, prelatent_dense_layers, latent_size, initial_state=None):
-        """
-        Sets up an LSTM encode for the VAE
-        :param n_LSTM_hidden: Size of hidden layer of LSTM
-        :param prelatent_dense_layers: List of hidden layer sizes of dense layers feeding into latent mean/stdev
-        :param latent_size: Size of latent space
-        """
-        assert type(prelatent_dense_layers) == list
-        self.n_LSTM_hidden = n_LSTM_hidden
-        self.latent_size = latent_size
-        self.prelatent_dense_layers = prelatent_dense_layers
-        self.initial_state = initial_state
-
-    def __call__(self, input):
-        """
-        Calls the LSTM encoder
-        :param input: Tensor of shape (n_steps, batch_size, n_inputs)
-        :param init_state: Initial state. Tuple of 2 tensors of shape (batch_size, n_hidden). Can be None,
-                            in which case the initial state is set to zero
-        :return: z_mean, z_log_sigma, both of size latent_size
-        """
-        lstm_encoder = SimpleLSTM(self.n_LSTM_hidden, scope='LSTM_encoder',
-                                  initializer=tf.contrib.layers.xavier_initializer())
-        # outputs (shape is (n_steps, batch_size, n_outputs)), final state
-        outputs, final_state = lstm_encoder(input, self.initial_state)
-        outputs = tf.unpack(outputs)  # List of length n_steps
-
-        # Dense layers to feed into latent variable mean and standard deviation
-        prelatent_layers = [Dense(scope="prelatent_{}".format(i), size=hidden_size, nonlinearity=tf.tanh,
-                                  initialiser=wbVars_Xavier) for i, hidden_size in
-                            enumerate(reversed(self.prelatent_dense_layers))]
-        z_mean_log_sigma_encoded = composeAll(prelatent_layers)(outputs[-1])
-
-        z_mean = Dense(scope="z_mean", size=self.latent_size, nonlinearity=tf.identity,
-                       initialiser=wbVars_Xavier)(z_mean_log_sigma_encoded)
-        z_log_sigma = Dense(scope="z_log_sigma", size=self.latent_size, nonlinearity=tf.identity,
-                            initialiser=wbVars_Xavier)(z_mean_log_sigma_encoded)
-        return z_mean, z_log_sigma
-
-
-#################################################################################################################
-
-
-class VAE_LSTMDecoder(object):
-    def __init__(self, n_LSTM_hidden, postlatent_dense_layers, n_outputs, n_steps=None, output_activation=tf.tanh):
+class LSTMDecoder(object):
+    def __init__(self, n_LSTM_hidden, n_outputs, n_steps=None, output_activation=tf.tanh):
         """
         Sets up an LSTM encode for the VAE
         :param n_LSTM_hidden: Size of hidden layer of LSTM
@@ -95,7 +46,6 @@ class VAE_LSTMDecoder(object):
         :param output_activation: Activation function to apply to final LSTM output
         """
         self.n_LSTM_hidden = n_LSTM_hidden
-        self.postlatent_dense_layers = postlatent_dense_layers
         self.n_outputs = n_outputs
         self.n_steps = n_steps
         self.output_activation = output_activation
@@ -113,7 +63,6 @@ class VAE_LSTMDecoder(object):
         batch_size = z.get_shape()[0]
 
         if inputs is not None:
-            inputs_n_steps = inputs.get_shape()[0]
             inputs_batch_size = inputs.get_shape()[1]
             inputs_n_inputs = inputs.get_shape()[2]
             assert batch_size == inputs_batch_size
@@ -123,19 +72,14 @@ class VAE_LSTMDecoder(object):
             assert self.n_steps, "LSTMDecoder called without inputs, but n_steps has not been set."
 
         with tf.variable_scope("LSTM_Decoder") as decoder_scope:
-            postlatent_layers = [Dense(scope="postlatent_{}".format(i), size=hidden_size, nonlinearity=tf.tanh,
-                                      initialiser=wbVars_Xavier) for i, hidden_size in enumerate(reversed(self.postlatent_dense_layers))]
-            initial_LSTM_states_encoded = composeAll(postlatent_layers)(z)
-
             lstm_decoder = SimpleLSTM(self.n_LSTM_hidden, initializer=tf.contrib.layers.xavier_initializer())
-
             lstm_activation = lstm_decoder.lstm_activation  # Determines the range of the LSTM hidden state
 
             # (Cell state, hidden state):
-            init_states = (Dense(scope="latent_to_LSTM_cell", size=self.n_LSTM_hidden, nonlinearity=lstm_activation,
-                                 initialiser=wbVars_Xavier)(initial_LSTM_states_encoded),
-                           Dense(scope="latent_to_LSTM_hidden", size=self.n_LSTM_hidden, nonlinearity=lstm_activation,
-                                 initialiser=wbVars_Xavier)(initial_LSTM_states_encoded))
+            init_states = (Dense(scope="latent_to_LSTM_cell", size=self.n_LSTM_hidden, nonlinearity=lstm_activation)
+                           (z),
+                           Dense(scope="latent_to_LSTM_hidden", size=self.n_LSTM_hidden, nonlinearity=lstm_activation)
+                           (z))
 
             dense_output = Dense(scope="dense_output", size=self.n_outputs, nonlinearity=self.output_activation,
                                  initialiser=wbVars_Xavier)
@@ -192,10 +136,10 @@ class VAE():
         if build_dict:
             assert not model_to_restore
             assert 'dataset' in build_dict
-            assert all(key in build_dict for key in ['encoder', 'decoder', 'n_input',
+            assert all(key in build_dict for key in ['z_placeholder', 'decoder', 'n_input',
                                                      'input_placeholder', 'latent_dim',
                                                      'dataset', 'model_folder'])
-            self.encoder = build_dict['encoder']
+            self.z_ph = build_dict['z_placeholder']
             self.decoder = build_dict['decoder']
             self.input_placeholder = build_dict['input_placeholder']
             self.shifted_input_placeholder = build_dict['shifted_input_placeholder']
@@ -203,7 +147,6 @@ class VAE():
             self.n_input = build_dict['n_input']
             self.latent_dim = build_dict['latent_dim']
             self.dataset = build_dict['dataset']
-            self.model_folder = build_dict['model_folder']
             self.batch_size = self.dataset.minibatch_size
             self.global_step = tf.Variable(0, trainable=False, name="global_step")
             # build graph
@@ -214,9 +157,9 @@ class VAE():
             self.sess.run(tf.initialize_all_variables())
 
             # unpack handles for tensor ops to feed or fetch
-            (_1, _2,
-             self.z_mean, self.z_log_sigma, self.x_reconstructed, self.z_, self.x_reconstructed_,
-             self.cost, self.apply_gradients_op, _3) = handles
+            (_1, _2, _3,
+             self.x_reconstructed, self.z_, self.x_reconstructed_,
+             self.cost, self.apply_gradients_op, _4) = handles
         elif model_to_restore:
             assert not build_dict
             # rebuild graph
@@ -224,8 +167,8 @@ class VAE():
 
             handles = self.sess.graph.get_collection(VAE.RESTORE_KEY)
             print("Restored handles: ", handles)
-            (self.input_placeholder, self.shifted_input_placeholder,
-             self.z_mean, self.z_log_sigma, self.x_reconstructed, self.z_, self.x_reconstructed_,
+            (self.input_placeholder, self.shifted_input_placeholder, self.z_ph,
+             self.x_reconstructed, self.z_, self.x_reconstructed_,
              self.cost, self.apply_gradients_op, self.global_step) = handles
         else:
             raise Exception("VAE must be initialised with either build_dict or model_to_restore")
@@ -240,24 +183,9 @@ class VAE():
             # Both will have size (n_steps, batch_size, n_inputs)
             n_steps = self.input_placeholder.get_shape()[0].value  # To convert to int (otherwise this returns Dimension object)
 
-            print("input, shifted_input shape: ", self.input_placeholder.get_shape(),
-                  self.shifted_input_placeholder.get_shape())
-
-            z_mean, z_log_sigma = self.encoder(self.input_placeholder)  # (batch_size, latent_dim)
-
-            print("Finished setting up encoder")
-            print([var._variable for var in tf.all_variables()])
-
-            print('z_mean shape: ', z_mean.get_shape())
-            print('z_log_sigma shape: ', z_log_sigma.get_shape())
-
-            # z is random variables with shape (batch_size * samples_per_batch, latent_dim)
-            z = self.sampleGaussian(z_mean, z_log_sigma)  # Tensor z evaluates to different samples each time
-
             # decoding / "generative": p(x|z)
             # reconstruction is (n_steps, batch_size, n_outputs)
-            reconstruction = self.decoder(z, inputs=self.shifted_input_placeholder)  # Feed the ground truth to the decoder
-
+            reconstruction = self.decoder(self.z_ph, inputs=self.shifted_input_placeholder)  # Feed the ground truth to the decoder
             print("Finished setting up decoder")
 
             cost = tf.reduce_mean((reconstruction - self.input_placeholder)**2, reduction_indices=[0, 1, 3])
@@ -270,22 +198,13 @@ class VAE():
             # ops to directly explore latent space
             # defaults to prior z ~ N(0, I)
             with tf.name_scope("latent_in"):
-                z_ = tf.placeholder_with_default(tf.random_normal([1, self.latent_dim]),
-                                                 shape=[1, self.latent_dim],
-                                                 name="latent_in")
-            graph_scope.reuse_variables()  # No new variables should be created from this point on
+                z_ = tf.placeholder_with_default(tf.random_normal([1, self.latent_dim]), # batch_size = 1 !
+                                                 shape=[1, self.latent_dim])
+            graph_scope.reuse_variables()  # No new variables to be created from this point on
             x_reconstructed_ = self.decoder(z_)
 
-            return (self.input_placeholder, self.shifted_input_placeholder, z_mean, z_log_sigma,
+            return (self.input_placeholder, self.shifted_input_placeholder, self.z_ph,
                     reconstruction, z_, x_reconstructed_, cost, apply_gradients_op, self.global_step)
-
-    def encode(self, x):
-        """Probabilistic encoder from inputs to latent distribution parameters;
-        a.k.a. inference network q(z|x)
-        """
-        # np.array -> [float, float]
-        feed_dict = {self.input_placeholder: x}
-        return self.sess.run([self.z_mean, self.z_log_sigma], feed_dict=feed_dict)
 
     def decode(self, zs=None):
         """Generative decoder from latent space to reconstructions of input space;
@@ -297,7 +216,7 @@ class VAE():
         # else, zs defaults to draw from conjugate prior z ~ N(0, I)
         return self.sess.run(self.x_reconstructed_, feed_dict=feed_dict)
 
-    def train(self, max_iter=np.inf, max_epochs=np.inf, verbose=True, save=True):
+    def train(self, max_iter=np.inf, max_epochs=np.inf):
         while True:
             try:
                 x = self.dataset.next_batch()  # (batch_size, n_steps, n_inputs)
@@ -331,38 +250,29 @@ class VAE():
 
 #################################################################################################################
 
-################ THIS IS WHERE THE MODEL IS RUN ################
+################ THIS IS WHERE THE MODEL IS RUN, e.g. VIA COMMAND LINE ARGUMENTS ################
 
 
 
 batch_size = args.batch_size # Comes from command line
 dataset = .... # Comes from somewhere
 
-n_steps = data_shape[0]
-n_input = n_outputs = data_shape[1] # vector size
+n_steps = dataset.data_shape[0]
+n_input = n_outputs = dataset.data_shape[1] # vector size
 
-if resume_model:  # Resume a previously trained model
-    print("Model folder exists. Resuming training from {}".format(args.model_folder))
+if args.create_new_model:  # Create a new model
+    latent_dim = args.latent_dimension
+    n_hidden_decoder = args.lstm_decoder_hidden_units
 
-    vae = VAE(model_to_restore=meta_graph)
-    vae.dataset = dataset
-    cost = vae.train(max_iter=args.num_training_steps)
-elif create_new_model:  # Create a new model
-    latent_dim = args.latent_space_dimension
-    n_hidden_encoder = args.lstm_encoder_hidden_units[0]  # Just one hidden layer for now
-    prelatent_dense_layers = args.prelatent_dense_layers
-    n_hidden_decoder = args.lstm_decoder_hidden_units[0]
-    postlatent_dense_layers = args.postlatent_dense_layers
+    decoder = LSTMDecoder(n_hidden_decoder, n_outputs, n_steps=n_steps, output_activation=tf.sigmoid)
 
-    encoder = VAE_LSTMEncoder(n_hidden_encoder, prelatent_dense_layers, latent_dim)
-    decoder = VAE_LSTMDecoder(n_hidden_decoder, postlatent_dense_layers, n_outputs, n_steps=n_steps,
-                              output_activation=tf.sigmoid)
+    z_ph = tf.placeholder(dtype=tf.float32, shape=[batch_size, latent_dim])
 
     input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size, n_input], name="input")
     # The following placeholder is for feeding the ground truth to the LSTM decoder - the first input should be zeros
     shifted_input_placeholder = tf.placeholder(tf.float32, shape=[n_steps, batch_size, n_input], name="shifted_input")
 
-    build_dict = {'encoder': encoder,
+    build_dict = {'z_placeholder': z_ph,
                   'decoder': decoder,
                   'n_input': n_input,
                   'input_placeholder': input_placeholder,
@@ -371,10 +281,13 @@ elif create_new_model:  # Create a new model
                   'dataset': dataset}
 
     vae = VAE(build_dict=build_dict)
-
     cost = vae.train(max_iter=args.num_training_steps)
-else: sample_from_model: # Load a previously trained model and sample from it
-
-
-
-
+elif args.resume_model:  # Resume a previously trained model
+    vae = VAE(model_to_restore=meta_graph)
+    vae.dataset = dataset
+    cost = vae.train(max_iter=args.num_training_steps)
+else:
+    # Load a previously trained model and sample from it
+    vae = VAE(model_to_restore=meta_graph)
+    z_input = ... # whatever
+    sample = vae.decode(zs=z_input)
