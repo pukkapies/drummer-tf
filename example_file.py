@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+from tensorflow.contrib.rnn import BasicLSTMCell
 
 
 class SimpleLSTM(object):
